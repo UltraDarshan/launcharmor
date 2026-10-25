@@ -34,6 +34,9 @@ func TestRuleAccuracy(t *testing.T) {
 		{"VS-012", `const key = process.env.NEXT_PUBLIC_OPENAI_API_KEY`, true},
 		{"VS-012", `VITE_SUPABASE_SERVICE_ROLE_KEY=abc`, true},
 		{"VS-013", `xoxb-` + `123456789012-1234567890123-AbCdEfGhIjKlMnOp`, true},
+		{"VS-014", `const resend = "re_` + `1234567890AbCdEfGhIjKl"`, true},
+		{"VS-015", `const groq = "gsk_` + `AbCdEf1234567890GhIjKlMnOpQrStUvWxYz01234567"`, true},
+		{"VS-016", `const ph = "phc_` + `AbCdEf1234567890GhIjKlMnOpQrStUv"`, true},
 
 		// Look-alikes that must NOT be flagged
 		{"VS-001", `<div class="sk-folding-cube-animation-wrapper">`, false}, // SpinKit CSS
