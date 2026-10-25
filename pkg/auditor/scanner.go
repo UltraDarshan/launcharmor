@@ -183,5 +183,8 @@ func (s *Scanner) scanFile(filePath string) ([]Finding, error) {
 
 // gitIgnored reports whether git ignores path; false when git or a repo is unavailable.
 func gitIgnored(path string) bool {
-	return exec.Command("git", "-C", filepath.Dir(path), "check-ignore", "-q", filepath.Base(path)).Run() == nil
+	// The scanned tree may be hostile: core.fsmonitor in its .git/config would run a command.
+	cmd := exec.Command("git", "-c", "core.fsmonitor=false", "-C", filepath.Dir(path), "check-ignore", "-q", filepath.Base(path))
+	cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null")
+	return cmd.Run() == nil
 }

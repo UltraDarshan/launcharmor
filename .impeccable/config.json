@@ -1,0 +1,23 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "docs/index.html"
+        ],
+        "createdAt": "2026-10-25T06:05:49.768Z",
+        "reason": "Claude triage: flagged containers all have 8-40px padding on themselves or their children (verified in headless Chromium screenshots); detector misreads Tailwind compiled classes"
+      },
+      {
+        "rule": "overused-font",
+        "value": "plus jakarta sans",
+        "createdAt": "2026-10-25T06:05:49.782Z",
+        "reason": "Project CLAUDE.md mandates Inter/Plus Jakarta Sans/Outfit"
+      }
+    ]
+  }
+}
