@@ -63,7 +63,7 @@ func BuiltinRules() []Rule {
 			Severity:    SeverityHigh,
 			Pattern:     regexp.MustCompile(`(\beval\s*\(|exec\s*\(\s*\$_(GET|POST|REQUEST)|shell_exec\s*\()`),
 			Description: "Code uses dynamic execution with unsanitized parameters, risking Remote Code Execution (RCE).",
-			Solution:    "Remove dynamic eval() or shell execution. Use parameterized functions instead.", // vibeshield:ignore
+			Solution:    "Remove dynamic eval() or shell execution. Use parameterized functions instead.", // launcharmor:ignore
 		},
 		{
 			ID:          "VS-005",

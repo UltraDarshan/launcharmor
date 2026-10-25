@@ -28,7 +28,7 @@ func GenerateCaddyfile(opts ConfigOptions) string {
 		port = 3000
 	}
 
-	return fmt.Sprintf(`# VibeShield Production Caddyfile - Hardened Reverse Proxy
+	return fmt.Sprintf(`# LaunchArmor Production Caddyfile - Hardened Reverse Proxy
 # Target: %s -> Local Service :%d
 
 %s {
@@ -80,7 +80,7 @@ func GenerateNginxConfig(opts ConfigOptions) string {
 		port = 3000
 	}
 
-	return fmt.Sprintf(`# VibeShield Hardened Nginx Configuration
+	return fmt.Sprintf(`# LaunchArmor Hardened Nginx Configuration
 # Target: %s
 
 # Rate limiting zone: max 10 requests/second per IP with burst up to 20
@@ -150,7 +150,7 @@ func GenerateSystemdService(opts ConfigOptions) string {
 	}
 
 	return fmt.Sprintf(`[Unit]
-Description=%s Vibe-Coded Service (Protected by VibeShield)
+Description=%s Vibe-Coded Service (Protected by LaunchArmor)
 Wants=network-online.target
 After=network-online.target
 

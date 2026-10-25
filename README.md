@@ -1,11 +1,11 @@
-# VibeShield (バイブ・シールド)
+# LaunchArmor (ローンチ・アーマー)
 
 > **Zero-cost, developer-first security scanner & Linux infrastructure hardener for AI vibe-coded applications.**  
 > *AIバイブコーディングアプリ向け、ゼロコスト・開発者主導のセキュリティスキャナー兼Linuxインフラ保護スイート。*
 
 [![Go Version](https://img.shields.io/badge/go-1.26+-00ADD8.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![CI](https://github.com/UltraDarshan/vibeshield/actions/workflows/ci.yml/badge.svg)](https://github.com/UltraDarshan/vibeshield/actions/workflows/ci.yml)
+[![CI](https://github.com/UltraDarshan/launcharmor/actions/workflows/ci.yml/badge.svg)](https://github.com/UltraDarshan/launcharmor/actions/workflows/ci.yml)
 
 ---
 
@@ -17,29 +17,29 @@ AI coding tools (Cursor, Bolt, v0, Lovable, Claude) allow anyone to prototype an
 - Dangerous execution functions (`eval()`, command injection).
 - Unhardened Linux servers (apps run directly as `root` without reverse proxies or rate limits).
 
-**VibeShield** is an open-core, single-binary security scanner and Linux infrastructure hardener written in Go with **zero runtime dependencies**.
+**LaunchArmor** is an open-core, single-binary security scanner and Linux infrastructure hardener written in Go with **zero runtime dependencies**.
 
 ---
 
 ## 📦 Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/UltraDarshan/vibeshield/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/UltraDarshan/launcharmor/main/install.sh | bash
 # or, with Go installed:
-go install github.com/UltraDarshan/vibeshield/cmd/vibeshield@latest
+go install github.com/UltraDarshan/launcharmor/cmd/launcharmor@latest
 ```
 
-Prebuilt binaries for Linux, macOS (amd64/arm64) and Windows are on the [releases page](https://github.com/UltraDarshan/vibeshield/releases).
+Prebuilt binaries for Linux, macOS (amd64/arm64) and Windows are on the [releases page](https://github.com/UltraDarshan/launcharmor/releases).
 
 ---
 
 ## 🚀 Commands & Usage
 
-### 1. Security Scan (`vibeshield scan`)
+### 1. Security Scan (`launcharmor scan`)
 Finds the leaks that actually happen in AI-built apps. Exits non-zero on any CRITICAL/HIGH finding, so it can gate CI:
 ```bash
-vibeshield scan /path/to/project
-vibeshield scan . --format sarif > vibeshield.sarif   # or --format json
+launcharmor scan /path/to/project
+launcharmor scan . --format sarif > launcharmor.sarif   # or --format json
 ```
 
 | Rule | Detects | Severity |
@@ -60,9 +60,9 @@ vibeshield scan . --format sarif > vibeshield.sarif   # or --format json
 | VS-013 | Slack tokens | High |
 | VS-020 | Firebase rules with `if true` / `".read": true` | Critical |
 
-Placeholders (`sk-xxxx`, `your-api-key`), local dev databases and gitignored `.env` files are skipped, and secrets are **masked in all output** so findings never re-leak keys into CI logs. False positive? Add `vibeshield:ignore` in a comment on that line.
+Placeholders (`sk-xxxx`, `your-api-key`), local dev databases and gitignored `.env` files are skipped, and secrets are **masked in all output** so findings never re-leak keys into CI logs. False positive? Add `launcharmor:ignore` in a comment on that line.
 
-### 2. Database RLS Verification (`vibeshield db-audit`)
+### 2. Database RLS Verification (`launcharmor db-audit`)
 Replays your SQL / Supabase migrations in order and reports every `public` table anyone can reach through the Supabase API:
 - tables without Row Level Security (or with RLS disabled again later),
 - RLS tables with a policy like `FOR UPDATE USING (true)` that lets anyone change every row,
@@ -70,20 +70,20 @@ Replays your SQL / Supabase migrations in order and reports every `public` table
 
 Each finding comes with fix SQL that is checked to run on Postgres 17.
 ```bash
-vibeshield db-audit /path/to/project
+launcharmor db-audit /path/to/project
 ```
 
-### 3. Linux Infrastructure Hardening (`vibeshield harden`)
+### 3. Linux Infrastructure Hardening (`launcharmor harden`)
 Generates hardened Caddy / Nginx reverse proxy configs and a sandboxed `systemd` unit (`systemd-analyze security` exposure score: **1.5 OK**):
 ```bash
-vibeshield harden <name> <port> <domain> [out-dir]   # e.g. vibeshield harden myapp 3000 myapp.com ./deploy
+launcharmor harden <name> <port> <domain> [out-dir]   # e.g. launcharmor harden myapp 3000 myapp.com ./deploy
 ```
 
 ### 4. GitHub Action
 ```yaml
 - uses: actions/checkout@v4
-- name: VibeShield security audit
-  uses: UltraDarshan/vibeshield@main
+- name: LaunchArmor security audit
+  uses: UltraDarshan/launcharmor@main
   with:
     target_dir: '.'
     audit_db: 'true'
@@ -99,8 +99,8 @@ vibeshield harden <name> <port> <domain> [out-dir]   # e.g. vibeshield harden my
 
 ```bash
 # Clone the repository
-git clone https://github.com/UltraDarshan/vibeshield.git
-cd vibeshield
+git clone https://github.com/UltraDarshan/launcharmor.git
+cd launcharmor
 
 # Build binary
 make build
@@ -113,7 +113,7 @@ make test
 
 ## 🇯🇵 日本語概要 (Overview for Japan Tech Infrastructure)
 
-VibeShieldは、AIツール（Cursor、v0、Bolt等）で高速開発されたWebアプリケーション向けのセキュリティ監査およびLinuxインフラ保護ツールです。
+LaunchArmorは、AIツール（Cursor、v0、Bolt等）で高速開発されたWebアプリケーション向けのセキュリティ監査およびLinuxインフラ保護ツールです。
 APIキーの露出、データベースのRLS（行レベルセキュリティ）未設定、不適切なLinuxプロセス権限などの脆弱性を瞬時に検出し、本番環境向けのセキュアな構成（Caddy/Nginx、systemdサンドボックス）を自動生成します。
 
 詳細なアーキテクチャおよび脅威モデルは [docs/ja/architecture.md](docs/ja/architecture.md) をご参照ください。

@@ -1,8 +1,8 @@
 .PHONY: all build test clean run-scan run-db run-harden site
 
-BINARY_NAME=vibeshield
+BINARY_NAME=launcharmor
 BUILD_DIR=bin
-CMD_PATH=./cmd/vibeshield
+CMD_PATH=./cmd/launcharmor
 
 all: build
 

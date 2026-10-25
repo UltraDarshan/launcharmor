@@ -1,11 +1,11 @@
-# VibeShield: アーキテクチャおよび脅威モデル (Architecture & Threat Model)
+# LaunchArmor: アーキテクチャおよび脅威モデル (Architecture & Threat Model)
 
 ## 1. 概要 (Overview)
-VibeShieldは、AIツール（Cursor、v0、Bolt等）によって高速開発された「バイブコーディング（Vibe-coded）」アプリおよびそのLinuxインフラを自動保護するためのGo言語製セキュリティツールです。外部依存関係なしで単一のバイナリとして動作します。
+LaunchArmorは、AIツール（Cursor、v0、Bolt等）によって高速開発された「バイブコーディング（Vibe-coded）」アプリおよびそのLinuxインフラを自動保護するためのGo言語製セキュリティツールです。外部依存関係なしで単一のバイナリとして動作します。
 
 ## 2. 対策する脅威ベクトル (Threat Vectors)
 
-| ID | 攻撃ベクトル (Threat) | VibeShieldの対策 (Mitigation) |
+| ID | 攻撃ベクトル (Threat) | LaunchArmorの対策 (Mitigation) |
 | :--- | :--- | :--- |
 | **TV-01** | APIキー・クレデンシャルの流出 | 行単位の正規表現スキャナーにより、コミットされた `.env`、OpenAI、Stripe、Supabase秘密鍵を検出。 |
 | **TV-02** | データベースの不正アクセス (IDOR) | SQLファイルを走査し、PostgreSQLおよびSupabaseの行レベルセキュリティ (RLS) 未適用テーブルを検出。 |

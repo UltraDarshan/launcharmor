@@ -9,7 +9,7 @@ import (
 )
 
 func TestScannerDetectsSecrets(t *testing.T) {
-	tempDir, err := os.MkdirTemp("", "vibeshield-test-*")
+	tempDir, err := os.MkdirTemp("", "launcharmor-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -47,7 +47,7 @@ func TestScannerEdgeCases(t *testing.T) {
 	dir := t.TempDir()
 	content := strings.Repeat("x", 70000) + "\n" + // longer than bufio's 64KB default
 		`const a = "sk_li` + `ve_51HxYz2AbCdEfGh3IjKlMn4OpQr";` + "\n" +
-		`const b = "sk_li` + `ve_51HxYz2AbCdEfGh3IjKlMn4OpQr"; // vibeshield:ignore` + "\n"
+		`const b = "sk_li` + `ve_51HxYz2AbCdEfGh3IjKlMn4OpQr"; // launcharmor:ignore` + "\n"
 	if err := os.WriteFile(filepath.Join(dir, "bundle.js"), []byte(content), 0644); err != nil {
 		t.Fatal(err)
 	}

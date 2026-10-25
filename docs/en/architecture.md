@@ -1,11 +1,11 @@
-# VibeShield: Architecture & Threat Model
+# LaunchArmor: Architecture & Threat Model
 
 ## 1. Overview
-VibeShield is designed as a standalone, zero-dependency Go CLI tool to evaluate and secure rapid, AI-generated applications ("vibe-coded" systems) and their underlying Linux infrastructure.
+LaunchArmor is designed as a standalone, zero-dependency Go CLI tool to evaluate and secure rapid, AI-generated applications ("vibe-coded" systems) and their underlying Linux infrastructure.
 
 ## 2. Threat Vector Coverage
 
-| ID | Attack Vector | Mitigation in VibeShield |
+| ID | Attack Vector | Mitigation in LaunchArmor |
 | :--- | :--- | :--- |
 | **TV-01** | Exposed API Keys & Secrets | Line-based regex scanner detects committed `.env`, OpenAI, Stripe, and Supabase service keys. |
 | **TV-02** | Unprotected Cloud Databases (IDOR) | SQL migration parser enforces Row Level Security (RLS) on PostgreSQL & Supabase. |
@@ -17,7 +17,7 @@ VibeShield is designed as a standalone, zero-dependency Go CLI tool to evaluate 
 
 ## 3. Linux Infrastructure Sandboxing Architecture
 
-When deploying AI-generated apps to a Linux server, typical amateurs run apps directly as `root` or without process isolation. VibeShield generates kernel-level sandboxing configurations:
+When deploying AI-generated apps to a Linux server, typical amateurs run apps directly as `root` or without process isolation. LaunchArmor generates kernel-level sandboxing configurations:
 
 ```
 +----------------------------------------------------------------+

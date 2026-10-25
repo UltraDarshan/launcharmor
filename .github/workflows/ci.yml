@@ -30,10 +30,10 @@ jobs:
       - name: Run automated unit tests
         run: make test
 
-      - name: Run self-audit with VibeShield
+      - name: Run self-audit with LaunchArmor
         run: |
-          ./bin/vibeshield scan .
-          ./bin/vibeshield db-audit .
+          ./bin/launcharmor scan .
+          ./bin/launcharmor db-audit .
 
   action:
     name: Composite action works from a consumer repo
@@ -41,10 +41,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          path: vibeshield
+          path: launcharmor
       - name: Create a clean sample project
         run: mkdir sample && echo 'console.log("hello")' > sample/index.js
-      - uses: ./vibeshield
+      - uses: ./launcharmor
         with:
           target_dir: sample
 
@@ -53,7 +53,7 @@ jobs:
         run: |
           mkdir leaky
           echo "const stripe = Stripe(\"sk_li""ve_51HxYz2AbCdEfGh3IjKlMn4OpQr\");" > leaky/pay.js
-      - uses: ./vibeshield
+      - uses: ./launcharmor
         id: leaky
         continue-on-error: true
         with:
@@ -61,5 +61,5 @@ jobs:
       - name: Assert the leaky project was rejected
         if: steps.leaky.outcome != 'failure'
         run: |
-          echo "::error::VibeShield did not fail on a hardcoded Stripe key"
+          echo "::error::LaunchArmor did not fail on a hardcoded Stripe key"
           exit 1

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-REPO="UltraDarshan/vibeshield"
+REPO="UltraDarshan/launcharmor"
 VERSION="${VIBESHIELD_VERSION:-latest}"
 
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
@@ -12,11 +12,11 @@ case "$(uname -m)" in
 esac
 
 if [ "$OS" != "linux" ] && [ "$OS" != "darwin" ] || [ "$ARCH" = "unsupported" ]; then
-    echo "No prebuilt binary for $(uname -s)/$(uname -m). Download one from https://github.com/${REPO}/releases or build with: go install github.com/${REPO}/cmd/vibeshield@latest" >&2
+    echo "No prebuilt binary for $(uname -s)/$(uname -m). Download one from https://github.com/${REPO}/releases or build with: go install github.com/${REPO}/cmd/launcharmor@latest" >&2
     exit 1
 fi
 
-TARGET_BIN="vibeshield-${OS}-${ARCH}"
+TARGET_BIN="launcharmor-${OS}-${ARCH}"
 if [ "$VERSION" = "latest" ]; then
     DOWNLOAD_URL="https://github.com/${REPO}/releases/latest/download/${TARGET_BIN}"
 else
@@ -28,17 +28,17 @@ mkdir -p "$INSTALL_DIR"
 TMP="$(mktemp)"
 trap 'rm -f "$TMP"' EXIT
 
-echo "[VibeShield] Downloading ${TARGET_BIN} (${VERSION})..."
+echo "[LaunchArmor] Downloading ${TARGET_BIN} (${VERSION})..."
 # -f: fail on HTTP errors instead of saving a "Not Found" page as the binary
 curl -fsSL "$DOWNLOAD_URL" -o "$TMP"
 chmod +x "$TMP"
-mv "$TMP" "${INSTALL_DIR}/vibeshield"
+mv "$TMP" "${INSTALL_DIR}/launcharmor"
 
-echo "✔ VibeShield installed to ${INSTALL_DIR}/vibeshield"
+echo "✔ LaunchArmor installed to ${INSTALL_DIR}/launcharmor"
 case ":$PATH:" in
     *":${INSTALL_DIR}:"*) ;;
     *) echo "  Note: ${INSTALL_DIR} is not on your PATH. Add: export PATH=\"\$HOME/.local/bin:\$PATH\"" ;;
 esac
 echo ""
 echo "Run it anywhere with:"
-echo "  vibeshield scan ."
+echo "  launcharmor scan ."

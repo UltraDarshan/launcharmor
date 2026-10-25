@@ -7,7 +7,7 @@ import (
 )
 
 func TestAuditSQLFiles(t *testing.T) {
-	tempDir, err := os.MkdirTemp("", "vibeshield-dbtest-*")
+	tempDir, err := os.MkdirTemp("", "launcharmor-dbtest-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}

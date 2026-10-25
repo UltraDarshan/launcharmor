@@ -9,8 +9,8 @@ import (
 	"strings"
 )
 
-// IgnoreMarker suppresses all findings on a line, e.g. `// vibeshield:ignore`.
-const IgnoreMarker = "vibeshield:ignore"
+// IgnoreMarker suppresses all findings on a line, e.g. `// launcharmor:ignore`.
+const IgnoreMarker = "launcharmor:ignore"
 
 // Scanner inspects directory files against security rules.
 type Scanner struct {

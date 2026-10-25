@@ -10,9 +10,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/UltraDarshan/vibeshield/pkg/auditor"
-	"github.com/UltraDarshan/vibeshield/pkg/dbaudit"
-	"github.com/UltraDarshan/vibeshield/pkg/infra"
+	"github.com/UltraDarshan/launcharmor/pkg/auditor"
+	"github.com/UltraDarshan/launcharmor/pkg/dbaudit"
+	"github.com/UltraDarshan/launcharmor/pkg/infra"
 )
 
 const version = "0.2.0"
@@ -75,7 +75,7 @@ func main() {
 
 		runHarden(appName, port, domain, outputDir)
 	case "version":
-		fmt.Printf("VibeShield version %s (%s/%s)\n", version, runtime.GOOS, runtime.GOARCH)
+		fmt.Printf("LaunchArmor version %s (%s/%s)\n", version, runtime.GOOS, runtime.GOARCH)
 	case "help", "-h", "--help":
 		printHelp()
 	default:
@@ -163,7 +163,7 @@ func runScan(target, format string) {
 		emit(format, report, report.Findings, absPath)
 	}
 
-	fmt.Printf("%s[VibeShield v%s]%s Scanning project at: %s%s%s\n\n", colorCyan, version, colorReset, colorBold, absPath, colorReset)
+	fmt.Printf("%s[LaunchArmor v%s]%s Scanning project at: %s%s%s\n\n", colorCyan, version, colorReset, colorBold, absPath, colorReset)
 
 	fmt.Printf("Scanned %d files (%d total in tree).\n", report.ScannedFiles, report.TotalFiles)
 
@@ -227,7 +227,7 @@ func runDBAudit(target, format string) {
 		emit(format, dbResult, dbResult.Findings(), absPath)
 	}
 
-	fmt.Printf("%s[VibeShield v%s]%s Auditing database schemas in: %s%s%s\n\n", colorCyan, version, colorReset, colorBold, absPath, colorReset)
+	fmt.Printf("%s[LaunchArmor v%s]%s Auditing database schemas in: %s%s%s\n\n", colorCyan, version, colorReset, colorBold, absPath, colorReset)
 
 	if dbResult.TotalTables == 0 {
 		fmt.Println("No SQL schema or migration files found in target directory.")
@@ -270,7 +270,7 @@ func runDBAudit(target, format string) {
 }
 
 func runHarden(appName string, port int, domain string, outputDir string) {
-	fmt.Printf("%s[VibeShield v%s]%s Generating hardened Linux infrastructure configs...\n\n", colorCyan, version, colorReset)
+	fmt.Printf("%s[LaunchArmor v%s]%s Generating hardened Linux infrastructure configs...\n\n", colorCyan, version, colorReset)
 
 	opts := infra.ConfigOptions{
 		AppName:     appName,
@@ -296,12 +296,12 @@ func runHarden(appName string, port int, domain string, outputDir string) {
 }
 
 func printHelp() {
-	fmt.Println("VibeShield - Security Scanner & Linux Infra Hardener for Vibe-Coded Apps")
+	fmt.Println("LaunchArmor - Security Scanner & Linux Infra Hardener for Vibe-Coded Apps")
 	fmt.Println("\nUsage:")
-	fmt.Println("  vibeshield scan [dir] [--format text|json|sarif]")
+	fmt.Println("  launcharmor scan [dir] [--format text|json|sarif]")
 	fmt.Println("                                              Scan code for leaked keys, risky code and open Firebase rules")
-	fmt.Println("  vibeshield db-audit [dir] [--format ...]    Audit SQL/Supabase migrations for missing RLS and open policies")
-	fmt.Println("  vibeshield harden [name] [port] [domain] [out-dir]")
+	fmt.Println("  launcharmor db-audit [dir] [--format ...]    Audit SQL/Supabase migrations for missing RLS and open policies")
+	fmt.Println("  launcharmor harden [name] [port] [domain] [out-dir]")
 	fmt.Println("                                              Generate hardened Linux Caddy, Nginx & systemd configs")
-	fmt.Println("  vibeshield version                          Display version information")
+	fmt.Println("  launcharmor version                          Display version information")
 }

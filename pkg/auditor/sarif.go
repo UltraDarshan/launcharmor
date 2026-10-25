@@ -63,9 +63,9 @@ func SARIF(findings []Finding, root, version string) ([]byte, error) {
 		"$schema": "https://json.schemastore.org/sarif-2.1.0.json",
 		"runs": []m{{
 			"tool": m{"driver": m{
-				"name":           "VibeShield",
+				"name":           "LaunchArmor",
 				"version":        version,
-				"informationUri": "https://github.com/UltraDarshan/vibeshield",
+				"informationUri": "https://github.com/UltraDarshan/launcharmor",
 				"rules":          ruleList,
 			}},
 			"results": results,

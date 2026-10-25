@@ -1,4 +1,4 @@
-name: 'VibeShield Security Audit'
+name: 'LaunchArmor Security Audit'
 description: 'Finds leaked API keys, open Supabase tables and open Firebase rules in AI-built apps'
 author: 'UltraDarshan'
 branding:
@@ -29,26 +29,26 @@ runs:
         cache: false
 
     # go run can't target a module outside the caller's repo, so build inside the action dir
-    - name: Build VibeShield
+    - name: Build LaunchArmor
       shell: bash
       working-directory: ${{ github.action_path }}
-      run: go build -o "$RUNNER_TEMP/vibeshield" ./cmd/vibeshield
+      run: go build -o "$RUNNER_TEMP/launcharmor" ./cmd/launcharmor
 
-    - name: Run VibeShield Scanner
+    - name: Run LaunchArmor Scanner
       id: scan
       shell: bash
       env:
         TARGET_DIR: ${{ inputs.target_dir }}
         SARIF: ${{ inputs.sarif }}
       run: |
-        echo "::group::VibeShield Code & Secret Audit"
-        "$RUNNER_TEMP/vibeshield" scan "$TARGET_DIR" || echo "failed=true" >> "$GITHUB_OUTPUT"
+        echo "::group::LaunchArmor Code & Secret Audit"
+        "$RUNNER_TEMP/launcharmor" scan "$TARGET_DIR" || echo "failed=true" >> "$GITHUB_OUTPUT"
         echo "::endgroup::"
         if [ "$SARIF" = "true" ]; then
-          "$RUNNER_TEMP/vibeshield" scan "$TARGET_DIR" --format sarif > "$RUNNER_TEMP/vibeshield-scan.sarif" || true
+          "$RUNNER_TEMP/launcharmor" scan "$TARGET_DIR" --format sarif > "$RUNNER_TEMP/launcharmor-scan.sarif" || true
         fi
 
-    - name: Run VibeShield Database Audit
+    - name: Run LaunchArmor Database Audit
       id: db
       if: inputs.audit_db == 'true'
       shell: bash
@@ -56,11 +56,11 @@ runs:
         TARGET_DIR: ${{ inputs.target_dir }}
         SARIF: ${{ inputs.sarif }}
       run: |
-        echo "::group::VibeShield Database RLS Audit"
-        "$RUNNER_TEMP/vibeshield" db-audit "$TARGET_DIR" || echo "failed=true" >> "$GITHUB_OUTPUT"
+        echo "::group::LaunchArmor Database RLS Audit"
+        "$RUNNER_TEMP/launcharmor" db-audit "$TARGET_DIR" || echo "failed=true" >> "$GITHUB_OUTPUT"
         echo "::endgroup::"
         if [ "$SARIF" = "true" ]; then
-          "$RUNNER_TEMP/vibeshield" db-audit "$TARGET_DIR" --format sarif > "$RUNNER_TEMP/vibeshield-db.sarif" || true
+          "$RUNNER_TEMP/launcharmor" db-audit "$TARGET_DIR" --format sarif > "$RUNNER_TEMP/launcharmor-db.sarif" || true
         fi
 
     # One upload per category: GitHub rejects several runs of the same tool+category in one upload
@@ -68,19 +68,19 @@ runs:
       if: inputs.sarif == 'true'
       uses: github/codeql-action/upload-sarif@v3
       with:
-        sarif_file: ${{ runner.temp }}/vibeshield-scan.sarif
-        category: vibeshield-scan
+        sarif_file: ${{ runner.temp }}/launcharmor-scan.sarif
+        category: launcharmor-scan
 
     - name: Upload database findings to GitHub Security
       if: inputs.sarif == 'true' && inputs.audit_db == 'true'
       uses: github/codeql-action/upload-sarif@v3
       with:
-        sarif_file: ${{ runner.temp }}/vibeshield-db.sarif
-        category: vibeshield-db
+        sarif_file: ${{ runner.temp }}/launcharmor-db.sarif
+        category: launcharmor-db
 
     - name: Fail on critical or high findings
       if: steps.scan.outputs.failed == 'true' || steps.db.outputs.failed == 'true'
       shell: bash
       run: |
-        echo "::error::VibeShield found critical or high severity issues. See the logs above for each fix."
+        echo "::error::LaunchArmor found critical or high severity issues. See the logs above for each fix."
         exit 1

@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/UltraDarshan/vibeshield/pkg/auditor"
+	"github.com/UltraDarshan/launcharmor/pkg/auditor"
 )
 
 // Issue is a problem with a table's access rules beyond plain "RLS off".
