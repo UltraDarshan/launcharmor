@@ -92,18 +92,21 @@
             <li class="flex items-center gap-2"><span class="rounded bg-rose-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-rose-300">Critical</span>OpenAI keys, incl. sk-proj</li>
             <li class="flex items-center gap-2"><span class="rounded bg-rose-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-rose-300">Critical</span>Live Stripe secret keys</li>
             <li class="flex items-center gap-2"><span class="rounded bg-rose-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-rose-300">Critical</span>Supabase service-role keys</li>
+            <li class="flex items-center gap-2"><span class="rounded bg-rose-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-rose-300">Critical</span>Secrets in NEXT_PUBLIC_ / VITE_ vars</li>
+            <li class="flex items-center gap-2"><span class="rounded bg-rose-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-rose-300">Critical</span>Anthropic, AWS and GitHub keys</li>
+            <li class="flex items-center gap-2"><span class="rounded bg-rose-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-rose-300">Critical</span>Firebase rules open to everyone</li>
             <li class="flex items-center gap-2"><span class="rounded bg-amber-400/15 px-1.5 py-0.5 text-[11px] font-semibold text-amber-200">High</span>Committed .env files</li>
             <li class="flex items-center gap-2"><span class="rounded bg-amber-400/15 px-1.5 py-0.5 text-[11px] font-semibold text-amber-200">High</span>Dynamic code and shell execution</li>
             <li class="flex items-center gap-2"><span class="rounded bg-sky-400/15 px-1.5 py-0.5 text-[11px] font-semibold text-sky-200">Medium</span>Wildcard CORS headers</li>
           </ul>
-          <p class="mt-5 text-sm text-slate-400">False positive? Put <code class="font-mono text-slate-300">vibeshield:ignore</code> in a comment on that line.</p>
+          <p class="mt-5 text-sm text-slate-400">Placeholders and public keys are skipped, and every secret is masked in the output so your CI logs stay clean.</p>
         </article>
 
         <!-- db-audit -->
         <article class="rounded-2xl border border-white/10 bg-slate-900/50 p-6 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-emerald-400/30 hover:shadow-lg hover:shadow-emerald-500/10 md:col-span-2">
           <span class="grid size-10 place-items-center rounded-xl bg-emerald-400/10 text-emerald-400 ring-1 ring-emerald-400/20"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg></span>
           <h3 class="mt-4 text-lg font-semibold text-white">Close open tables <code class="ml-1 font-mono text-sm font-normal text-slate-400">db-audit</code></h3>
-          <p class="mt-2 text-sm leading-relaxed text-slate-400">Reads your SQL and Supabase migrations, lists every table without Row Level Security, and prints the exact SQL to fix it.</p>
+          <p class="mt-2 text-sm leading-relaxed text-slate-400">Replays your Supabase migrations and finds tables with no Row Level Security, or with a policy that lets anyone edit every row. Prints SQL that fixes it.</p>
         </article>
 
         <!-- harden -->
