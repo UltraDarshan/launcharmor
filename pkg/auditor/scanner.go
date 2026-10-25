@@ -201,7 +201,7 @@ func (s *Scanner) scanFile(filePath string) ([]Finding, error) {
 				Line:         lineNum,
 				Description:  rule.Description,
 				Solution:     rule.Solution,
-				MatchSnippet: snippetAround(line, match, rule.Secret),
+				MatchSnippet: snippetAround(line, match, rule),
 			})
 		}
 	}
@@ -220,32 +220,26 @@ func firstValidMatch(rule Rule, line string) string {
 	return ""
 }
 
-// assignedValueRe captures the value assigned right after a matched name, e.g. the "value" in NAME="value".
-var assignedValueRe = regexp.MustCompile(`^(\s*[:=]\s*["'\x60]?)([^\s"'\x60,;)]+)`)
-
-// snippetAround returns up to ~100 chars of context around match. It masks the match if it is a
-// secret, the value assigned to it, and anything else on the line that looks like a credential,
-// so findings never re-leak keys into (often public) CI logs.
-func snippetAround(line, match string, secret bool) string {
+// snippetAround returns up to ~40 chars of context either side of match. Each side is masked in
+// full before it is cut, so a cut can never expose the unrecognisable tail of a credential, and
+// findings never re-leak keys into (often public) CI logs.
+func snippetAround(line, match string, rule Rule) string {
 	i := strings.Index(line, match)
-	rest := line[i+len(match):]
+	before, after := maskSecrets(line[:i]), maskSecrets(line[i+len(match):])
 	shown := match
-	if secret {
+	if rule.Secret {
 		shown = Mask(match)
-	} else if m := assignedValueRe.FindStringSubmatch(rest); m != nil && !strings.HasPrefix(m[2], "process.env") {
-		rest = m[1] + Mask(m[2]) + rest[len(m[0]):]
 	}
-	start := max(0, i-40)
-	masked := maskSecrets(line[start:i]) + shown + maskSecrets(rest)
-	end := min(len(masked), len(line[start:i])+len(shown)+40)
-	out := strings.TrimSpace(masked[:end])
-	if start > 0 {
-		out = "..." + out
+	if rule.HideRest && strings.TrimSpace(after) != "" {
+		after = " ********"
 	}
-	if end < len(masked) {
-		out += "..."
+	if len(before) > 40 {
+		before = "..." + before[len(before)-40:]
 	}
-	return strings.ToValidUTF8(out, "")
+	if len(after) > 40 {
+		after = after[:40] + "..."
+	}
+	return strings.ToValidUTF8(strings.TrimSpace(before+shown+after), "")
 }
 
 // maskSecrets masks every credential-shaped string, whether or not it passed a rule's validator.

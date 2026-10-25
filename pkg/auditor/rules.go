@@ -16,6 +16,7 @@ type Rule struct {
 	FileFilter  *regexp.Regexp    // if nil, applies to all scanned code files; matched against the base name
 	Validate    func(string) bool // optional second check on the matched text; false drops the match
 	Secret      bool              // match is a credential: masked in output, still checked on minified lines
+	HideRest    bool              // match names a secret: never show what follows it on the line
 	Description string
 	Solution    string
 }
@@ -134,6 +135,7 @@ func BuiltinRules() []Rule {
 			ID:          "VS-012",
 			Title:       "Secret Exposed to the Browser via Public Env Var",
 			Severity:    SeverityCritical,
+			HideRest:    true,
 			Pattern:     regexp.MustCompile(`\b(?:NEXT_PUBLIC|VITE|REACT_APP|EXPO_PUBLIC|NUXT_PUBLIC|PUBLIC)_[A-Z0-9_]*(?:SECRET|SERVICE_ROLE|PRIVATE|PASSWORD|OPENAI|ANTHROPIC|GROQ|MISTRAL|REPLICATE|DEEPSEEK|GEMINI)[A-Z0-9_]*\b`),
 			Description: "Variables with this prefix are bundled into client JavaScript, so every visitor can read this secret.",
 			Solution:    "Drop the public prefix, read the value only in server code (API route / server action / edge function), and rotate the secret.",
