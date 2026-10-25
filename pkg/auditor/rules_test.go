@@ -105,6 +105,8 @@ func TestSnippetNeverLeaksNearbySecrets(t *testing.T) {
 		{`{"NEXT_PUBLIC_DB_PASSWORD": "Zq8rT2vX9mP4kL7wN3bY6cH1"}`, "NEXT_PUBLIC_DB_PASSWORD", "Zq8rT2vX9mP4kL7wN3bY6cH1"},
 		{`VITE_APP_SECRET := "Zq8rT2vX9mP4kL7wN3bY6cH1"`, "VITE_APP_SECRET", "Zq8rT2vX9mP4kL7wN3bY6cH1"},
 		{`const k = process.env.NEXT_PUBLIC_OPENAI_KEY || "Zq8rT2vX9mP4kL7wN3bY6cH1"`, "NEXT_PUBLIC_OPENAI_KEY", "Zq8rT2vX9mP4kL7wN3bY6cH1"},
+		// value written before the name
+		{`const v = "Zq8rT2vX9mP4kL7wN3bY6cH1"; export const NEXT_PUBLIC_APP_SECRET = v`, "NEXT_PUBLIC_APP_SECRET", "Zq8rT2vX9mP4kL7wN3bY6cH1"},
 	}
 	for _, c := range cases {
 		if got := snippetAround(c.line, c.match, Rule{HideRest: true}); strings.Contains(got, c.secret) {
@@ -123,5 +125,14 @@ func TestSnippetCutNeverExposesKeyTail(t *testing.T) {
 	line := `pay(` + key + `);    eval(input)`
 	if got := snippetAround(line, "eval(", Rule{}); strings.Contains(got, "IjKlMn4OpQr") {
 		t.Errorf("snippet exposes the tail of a key: %q", got)
+	}
+}
+
+func TestSnippetMatchInsideCredential(t *testing.T) {
+	// Only a name-shaped match can sit inside a key. Masking each side of the match separately
+	// would see two fragments too short to look like a key, and print them.
+	line := `k = "sk-` + `Ab3-NEXT_PUBLIC_X_SECRET-Q9zT7"`
+	if got := snippetAround(line, "NEXT_PUBLIC_X_SECRET", Rule{}); strings.Contains(got, "Q9zT7") {
+		t.Errorf("snippet exposes the key around the match: %q", got)
 	}
 }
