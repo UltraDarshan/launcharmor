@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/UltraDarshan/vibeshield/pkg/auditor"
+	"github.com/UltraDarshan/vibeshield/pkg/dbaudit"
 )
 
 const version = "0.1.0-alpha"
@@ -34,6 +35,12 @@ func main() {
 			target = os.Args[2]
 		}
 		runScan(target)
+	case "db-audit":
+		target := "."
+		if len(os.Args) > 2 {
+			target = os.Args[2]
+		}
+		runDBAudit(target)
 	case "version":
 		fmt.Printf("VibeShield version %s (Linux/x86_64)\n", version)
 	default:
@@ -87,7 +94,6 @@ func runScan(target string) {
 		fmt.Printf("   %sFix:%s      %s\n\n", colorGreen, colorReset, f.Solution)
 	}
 
-	// Print Score
 	scoreColor := colorGreen
 	if report.Score < 50 {
 		scoreColor = colorRed
@@ -100,9 +106,52 @@ func runScan(target string) {
 	fmt.Printf("=============================================\n")
 }
 
+func runDBAudit(target string) {
+	absPath, err := filepath.Abs(target)
+	if err != nil {
+		fmt.Printf("Error resolving target path: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("%s[VibeShield v%s]%s Auditing database schemas in: %s%s%s\n\n", colorCyan, version, colorReset, colorBold, absPath, colorReset)
+
+	dbResult, err := dbaudit.AuditSQLFiles(absPath)
+	if err != nil {
+		fmt.Printf("Database audit failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	if dbResult.TotalTables == 0 {
+		fmt.Println("No SQL schema or migration files found in target directory.")
+		return
+	}
+
+	fmt.Printf("Identified %d total tables: %s%d Protected (RLS Enabled)%s | %s%d Vulnerable (No RLS)%s\n\n",
+		dbResult.TotalTables,
+		colorGreen, dbResult.ProtectedTables, colorReset,
+		colorRed, dbResult.VulnerableTables, colorReset)
+
+	for _, tbl := range dbResult.Tables {
+		relPath, _ := filepath.Rel(absPath, tbl.SourceFile)
+		if tbl.HasRLS {
+			fmt.Printf("  %s✔%s %-20s (RLS Active)   [%s:%d]\n", colorGreen, colorReset, tbl.TableName, relPath, tbl.LineNumber)
+		} else {
+			fmt.Printf("  %s✖%s %-20s %s(OPEN ACCESS)%s [%s:%d]\n", colorRed, colorReset, tbl.TableName, colorRed, colorReset, relPath, tbl.LineNumber)
+			fmt.Printf("    %sRemediation SQL:%s %s\n", colorYellow, colorReset, tbl.FixSQL)
+		}
+	}
+
+	if dbResult.VulnerableTables > 0 {
+		fmt.Printf("\n%s[CRITICAL]%s %d table(s) can be read/written by anyone using Supabase/PostgREST anonymously!\n", colorRed, colorReset, dbResult.VulnerableTables)
+	} else {
+		fmt.Printf("\n%s✔ All tables have Row Level Security enabled!%s\n", colorGreen, colorReset)
+	}
+}
+
 func printHelp() {
 	fmt.Println("VibeShield - Security Scanner & Linux Infra Hardener for Vibe-Coded Apps")
 	fmt.Println("\nUsage:")
 	fmt.Println("  vibeshield scan [dir]       Scan code, secrets, and configuration rules")
+	fmt.Println("  vibeshield db-audit [dir]   Audit SQL/Supabase schema migrations for open tables (RLS)")
 	fmt.Println("  vibeshield version          Display version information")
 }
