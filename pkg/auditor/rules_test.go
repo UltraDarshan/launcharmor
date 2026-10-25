@@ -82,7 +82,7 @@ func TestFirebaseRuleOnlyInRulesFiles(t *testing.T) {
 
 func TestSnippetMasksSecret(t *testing.T) {
 	key := "sk_" + "live_51HxYz2AbCdEfGh3IjKlMn4OpQr"
-	got := snippetAround(`const stripe = Stripe("`+key+`");`, key, true)
+	got := snippetAround(`const stripe = Stripe("`+key+`");`, key, Rule{Secret: true})
 	if strings.Contains(got, key) || !strings.Contains(got, "sk_live_") {
 		t.Errorf("snippet should show a masked prefix only, got %q", got)
 	}
@@ -101,13 +101,27 @@ func TestSnippetNeverLeaksNearbySecrets(t *testing.T) {
 		{`VITE_SUPABASE_SERVICE_ROLE_KEY=Zq8rT2vX9mP4kL7wN3bY6cH1`, "VITE_SUPABASE_SERVICE_ROLE_KEY", "Zq8rT2vX9mP4kL7wN3bY6cH1"},
 		// a second credential elsewhere on the same line
 		{`const NEXT_PUBLIC_PAY_SECRET = "` + key + `"`, "NEXT_PUBLIC_PAY_SECRET", key},
+		// other assignment syntaxes: JSON, Go :=, env fallback
+		{`{"NEXT_PUBLIC_DB_PASSWORD": "Zq8rT2vX9mP4kL7wN3bY6cH1"}`, "NEXT_PUBLIC_DB_PASSWORD", "Zq8rT2vX9mP4kL7wN3bY6cH1"},
+		{`VITE_APP_SECRET := "Zq8rT2vX9mP4kL7wN3bY6cH1"`, "VITE_APP_SECRET", "Zq8rT2vX9mP4kL7wN3bY6cH1"},
+		{`const k = process.env.NEXT_PUBLIC_OPENAI_KEY || "Zq8rT2vX9mP4kL7wN3bY6cH1"`, "NEXT_PUBLIC_OPENAI_KEY", "Zq8rT2vX9mP4kL7wN3bY6cH1"},
 	}
 	for _, c := range cases {
-		if got := snippetAround(c.line, c.match, false); strings.Contains(got, c.secret) {
+		if got := snippetAround(c.line, c.match, Rule{HideRest: true}); strings.Contains(got, c.secret) {
 			t.Errorf("snippet leaks %q: %q", c.secret, got)
 		}
 	}
 	if got := Mask("postgres://u:pa:ss99word@db.example.com"); got != "postgres://u:********@db.example.com" {
 		t.Errorf("password with ':' partly shown: %q", got)
+	}
+}
+
+func TestSnippetCutNeverExposesKeyTail(t *testing.T) {
+	key := "sk_" + "live_51HxYz2AbCdEfGh3IjKlMn4OpQrStUvWxYz"
+	// 52 chars precede eval(, so the 40-char window starts right after "sk_live_": cutting before
+	// masking would leave a prefix-less tail that no longer looks like a key
+	line := `pay(` + key + `);    eval(input)`
+	if got := snippetAround(line, "eval(", Rule{}); strings.Contains(got, "IjKlMn4OpQr") {
+		t.Errorf("snippet exposes the tail of a key: %q", got)
 	}
 }
