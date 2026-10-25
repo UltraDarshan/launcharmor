@@ -93,3 +93,21 @@ func TestMaskURLKeepsHost(t *testing.T) {
 		t.Errorf("got %q", got)
 	}
 }
+
+func TestSnippetNeverLeaksNearbySecrets(t *testing.T) {
+	key := "sk_" + "live_51HxYz2AbCdEfGh3IjKlMn4OpQr"
+	cases := []struct{ line, match, secret string }{
+		// VS-012 matches the variable name; the assigned value must still be hidden
+		{`VITE_SUPABASE_SERVICE_ROLE_KEY=Zq8rT2vX9mP4kL7wN3bY6cH1`, "VITE_SUPABASE_SERVICE_ROLE_KEY", "Zq8rT2vX9mP4kL7wN3bY6cH1"},
+		// a second credential elsewhere on the same line
+		{`const NEXT_PUBLIC_PAY_SECRET = "` + key + `"`, "NEXT_PUBLIC_PAY_SECRET", key},
+	}
+	for _, c := range cases {
+		if got := snippetAround(c.line, c.match, false); strings.Contains(got, c.secret) {
+			t.Errorf("snippet leaks %q: %q", c.secret, got)
+		}
+	}
+	if got := Mask("postgres://u:pa:ss99word@db.example.com"); got != "postgres://u:********@db.example.com" {
+		t.Errorf("password with ':' partly shown: %q", got)
+	}
+}
