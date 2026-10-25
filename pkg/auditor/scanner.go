@@ -3,9 +3,13 @@ package auditor
 import (
 	"bufio"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
+
+// IgnoreMarker suppresses all findings on a line, e.g. `// vibeshield:ignore`.
+const IgnoreMarker = "vibeshield:ignore"
 
 // Scanner inspects directory files against security rules.
 type Scanner struct {
@@ -53,6 +57,11 @@ func (s *Scanner) ScanDirectory(root string) (*Report, error) {
 		Score:     100,
 	}
 
+	// Fail loudly on a bad target: a typo must not pass CI with 100/100.
+	if _, err := os.Stat(root); err != nil {
+		return nil, err
+	}
+
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
@@ -73,16 +82,15 @@ func (s *Scanner) ScanDirectory(root string) (*Report, error) {
 			return nil
 		}
 
-		// Skip internal test files and rule definitions
-		if strings.Contains(path, "pkg/auditor/rules.go") || strings.HasSuffix(path, "_test.go") {
+		// Skip Go test fixtures, and local .env files that git already ignores (never committed)
+		if strings.HasSuffix(path, "_test.go") || (strings.HasPrefix(base, ".env") && gitIgnored(path)) {
 			return nil
 		}
 
 		report.ScannedFiles++
-		findings, scanErr := s.scanFile(path)
-		if scanErr == nil && len(findings) > 0 {
-			report.Findings = append(report.Findings, findings...)
-		}
+		// Keep partial findings even if reading stopped early (unreadable file or >16MB line)
+		findings, _ := s.scanFile(path)
+		report.Findings = append(report.Findings, findings...)
 
 		return nil
 	})
@@ -122,6 +130,8 @@ func (s *Scanner) scanFile(filePath string) ([]Finding, error) {
 
 	var findings []Finding
 	scanner := bufio.NewScanner(file)
+	// Minified bundles can exceed bufio's 64KB default and silently end the scan.
+	scanner.Buffer(make([]byte, 0, 64*1024), 16*1024*1024)
 	lineNum := 0
 
 	// Special check: committing actual .env files
@@ -143,8 +153,8 @@ func (s *Scanner) scanFile(filePath string) ([]Finding, error) {
 		lineNum++
 		line := scanner.Text()
 
-		// Skip excessively long minified files
-		if len(line) > 1000 {
+		// Skip excessively long minified lines and explicitly suppressed lines
+		if len(line) > 1000 || strings.Contains(line, IgnoreMarker) {
 			continue
 		}
 
@@ -168,5 +178,10 @@ func (s *Scanner) scanFile(filePath string) ([]Finding, error) {
 		}
 	}
 
-	return findings, nil
+	return findings, scanner.Err()
+}
+
+// gitIgnored reports whether git ignores path; false when git or a repo is unavailable.
+func gitIgnored(path string) bool {
+	return exec.Command("git", "-C", filepath.Dir(path), "check-ignore", "-q", filepath.Base(path)).Run() == nil
 }

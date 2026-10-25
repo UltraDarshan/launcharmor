@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"strconv"
 
 	"github.com/UltraDarshan/vibeshield/pkg/auditor"
@@ -11,7 +13,13 @@ import (
 	"github.com/UltraDarshan/vibeshield/pkg/infra"
 )
 
-const version = "0.1.0-alpha"
+const version = "0.1.1"
+
+// Names end up in file paths and nginx zone names; domains in proxy configs.
+var (
+	appNameRe = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]*$`)
+	domainRe  = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9.-]*$`)
+)
 
 // Terminal color codes
 const (
@@ -53,19 +61,33 @@ func main() {
 			appName = os.Args[2]
 		}
 		if len(os.Args) > 3 {
-			if p, err := strconv.Atoi(os.Args[3]); err == nil {
-				port = p
+			p, err := strconv.Atoi(os.Args[3])
+			if err != nil || p < 1 || p > 65535 {
+				fmt.Printf("Invalid port %q: must be 1-65535\n", os.Args[3])
+				os.Exit(2)
 			}
+			port = p
 		}
 		if len(os.Args) > 4 {
 			domain = os.Args[4]
 		}
+		if len(os.Args) > 5 {
+			outputDir = os.Args[5]
+		}
+		if !appNameRe.MatchString(appName) || !domainRe.MatchString(domain) {
+			fmt.Println("Invalid name or domain: use letters, digits, '-', '_' (name) and '.' (domain) only")
+			os.Exit(2)
+		}
 
 		runHarden(appName, port, domain, outputDir)
 	case "version":
-		fmt.Printf("VibeShield version %s (Linux/x86_64)\n", version)
-	default:
+		fmt.Printf("VibeShield version %s (%s/%s)\n", version, runtime.GOOS, runtime.GOARCH)
+	case "help", "-h", "--help":
 		printHelp()
+	default:
+		fmt.Printf("Unknown command %q\n\n", command)
+		printHelp()
+		os.Exit(2)
 	}
 }
 
@@ -92,7 +114,7 @@ func runScan(target string) {
 		os.Exit(0)
 	}
 
-	fmt.Printf("\n%s🚨 Found %d potential vulnerabilities:%s\n\n", colorRed, len(report.Findings), colorReset)
+	fmt.Printf("\n%s🚨 Found %d potential issue(s):%s\n\n", colorRed, len(report.Findings), colorReset)
 
 	hasCriticalOrHigh := false
 	for i, f := range report.Findings {
@@ -198,7 +220,7 @@ func runHarden(appName string, port int, domain string, outputDir string) {
 	}
 
 	fmt.Printf("%s✔ Configuration generated successfully in: %s%s%s\n\n", colorGreen, colorBold, outputDir, colorReset)
-	fmt.Printf("  1. %sCaddyfile%s              -> Modern HTTPS reverse proxy with strict HSTS, CSP, and zstd\n", colorBold, colorReset)
+	fmt.Printf("  1. %sCaddyfile%s              -> Automatic HTTPS reverse proxy with HSTS, security headers, and zstd\n", colorBold, colorReset)
 	fmt.Printf("  2. %s%s.nginx.conf%s      -> Nginx reverse proxy with IP rate-limiting zones\n", colorBold, appName, colorReset)
 	fmt.Printf("  3. %s%s.service%s         -> Sandboxed systemd unit with Linux kernel security isolation\n\n", colorBold, appName, colorReset)
 	fmt.Println("To apply on Linux:")
@@ -211,6 +233,7 @@ func printHelp() {
 	fmt.Println("\nUsage:")
 	fmt.Println("  vibeshield scan [dir]                       Scan code, secrets, and configuration rules")
 	fmt.Println("  vibeshield db-audit [dir]                   Audit SQL/Supabase schema migrations for open tables (RLS)")
-	fmt.Println("  vibeshield harden [name] [port] [domain]    Generate hardened Linux Caddy, Nginx & systemd configs")
+	fmt.Println("  vibeshield harden [name] [port] [domain] [out-dir]")
+	fmt.Println("                                              Generate hardened Linux Caddy, Nginx & systemd configs")
 	fmt.Println("  vibeshield version                          Display version information")
 }

@@ -6,16 +6,17 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 )
 
 // TableStatus tracks RLS posture of a table found in SQL schemas.
 type TableStatus struct {
-	TableName    string `json:"table_name"`
-	HasRLS       bool   `json:"has_rls"`
-	SourceFile   string `json:"source_file"`
-	LineNumber   int    `json:"line_number"`
-	FixSQL       string `json:"fix_sql"`
+	TableName  string `json:"table_name"`
+	HasRLS     bool   `json:"has_rls"`
+	SourceFile string `json:"source_file"`
+	LineNumber int    `json:"line_number"`
+	FixSQL     string `json:"fix_sql"`
 }
 
 // DBAuditResult aggregates database audit findings.
@@ -27,14 +28,18 @@ type DBAuditResult struct {
 }
 
 var (
-	createTableRegex = regexp.MustCompile(`(?i)CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:public\.)?["']?([a-zA-Z0-9_]+)["']?`)
-	enableRLSRegex   = regexp.MustCompile(`(?i)ALTER\s+TABLE\s+(?:ONLY\s+)?(?:public\.)?["']?([a-zA-Z0-9_]+)["']?\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY`)
+	createTableRegex = regexp.MustCompile(`(?i)CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:"?[a-zA-Z0-9_]+"?\.)?"?([a-zA-Z0-9_]+)"?`)
+	enableRLSRegex   = regexp.MustCompile(`(?i)ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?:ONLY\s+)?(?:"?[a-zA-Z0-9_]+"?\.)?"?([a-zA-Z0-9_]+)"?\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY`)
 )
 
 // AuditSQLFiles scans a project directory for .sql files (migrations, schema.sql, supabase migrations)
 func AuditSQLFiles(root string) (*DBAuditResult, error) {
 	result := &DBAuditResult{}
 	tableMap := make(map[string]*TableStatus)
+
+	if _, err := os.Stat(root); err != nil {
+		return nil, err
+	}
 
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -70,6 +75,7 @@ func AuditSQLFiles(root string) (*DBAuditResult, error) {
 		}
 		result.Tables = append(result.Tables, *tbl)
 	}
+	sort.Slice(result.Tables, func(i, j int) bool { return result.Tables[i].TableName < result.Tables[j].TableName })
 
 	return result, nil
 }
@@ -82,11 +88,15 @@ func parseSQLFile(filePath string, tableMap map[string]*TableStatus) error {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
+	scanner.Buffer(make([]byte, 0, 64*1024), 16*1024*1024) // large pg_dump lines
 	lineNum := 0
 
 	for scanner.Scan() {
 		lineNum++
 		line := scanner.Text()
+		if strings.HasPrefix(strings.TrimSpace(line), "--") {
+			continue
+		}
 
 		// Match CREATE TABLE
 		if match := createTableRegex.FindStringSubmatch(line); len(match) > 1 {
@@ -116,5 +126,5 @@ func parseSQLFile(filePath string, tableMap map[string]*TableStatus) error {
 			}
 		}
 	}
-	return nil
+	return scanner.Err()
 }
