@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -33,22 +34,47 @@ var ignoredDirs = map[string]bool{
 	"build":        true,
 	"venv":         true,
 	".venv":        true,
+	".svelte-kit":  true,
+	".nuxt":        true,
+	".output":      true,
+	".vercel":      true,
+	".turbo":       true,
+	".expo":        true,
+	"coverage":     true,
+	"__pycache__":  true,
+	"target":       true,
 }
 
 // Scannable extensions
 var codeExtensions = map[string]bool{
-	".js":   true,
-	".ts":   true,
-	".jsx":  true,
-	".tsx":  true,
-	".py":   true,
-	".php":  true,
-	".go":   true,
-	".env":  true,
-	".json": true,
-	".sql":  true,
-	".html": true,
-	".sh":   true,
+	".js":     true,
+	".ts":     true,
+	".jsx":    true,
+	".tsx":    true,
+	".py":     true,
+	".php":    true,
+	".go":     true,
+	".env":    true,
+	".json":   true,
+	".sql":    true,
+	".html":   true,
+	".sh":     true,
+	".mjs":    true,
+	".cjs":    true,
+	".vue":    true,
+	".svelte": true,
+	".astro":  true,
+	".yml":    true,
+	".yaml":   true,
+	".toml":   true,
+	".rb":     true,
+	".java":   true,
+	".kt":     true,
+	".dart":   true,
+	".swift":  true,
+	".rules":  true,
+	".pem":    true,
+	".key":    true,
 }
 
 func (s *Scanner) ScanDirectory(root string) (*Report, error) {
@@ -136,7 +162,7 @@ func (s *Scanner) scanFile(filePath string) ([]Finding, error) {
 
 	// Special check: committing actual .env files
 	baseName := filepath.Base(filePath)
-	if baseName == ".env" || strings.HasPrefix(baseName, ".env.local") || strings.HasPrefix(baseName, ".env.production") {
+	if strings.HasPrefix(baseName, ".env") && !envTemplateRe.MatchString(baseName) {
 		findings = append(findings, Finding{
 			RuleID:       "VS-000",
 			Title:        "Unsecured Environment File (.env)",
@@ -153,32 +179,76 @@ func (s *Scanner) scanFile(filePath string) ([]Finding, error) {
 		lineNum++
 		line := scanner.Text()
 
-		// Skip excessively long minified lines and explicitly suppressed lines
-		if len(line) > 1000 || strings.Contains(line, IgnoreMarker) {
+		if strings.Contains(line, IgnoreMarker) {
 			continue
 		}
+		// Minified lines: only look for credentials, code-pattern rules are too noisy there
+		minified := len(line) > 1000
 
 		for _, rule := range s.rules {
-			if rule.Pattern.MatchString(line) {
-				snippet := strings.TrimSpace(line)
-				if len(snippet) > 80 {
-					snippet = snippet[:80] + "..."
-				}
-				findings = append(findings, Finding{
-					RuleID:       rule.ID,
-					Title:        rule.Title,
-					Severity:     rule.Severity,
-					File:         filePath,
-					Line:         lineNum,
-					Description:  rule.Description,
-					Solution:     rule.Solution,
-					MatchSnippet: snippet,
-				})
+			if (minified && !rule.Secret) || (rule.FileFilter != nil && !rule.FileFilter.MatchString(baseName)) {
+				continue
 			}
+			match := firstValidMatch(rule, line)
+			if match == "" {
+				continue
+			}
+			findings = append(findings, Finding{
+				RuleID:       rule.ID,
+				Title:        rule.Title,
+				Severity:     rule.Severity,
+				File:         filePath,
+				Line:         lineNum,
+				Description:  rule.Description,
+				Solution:     rule.Solution,
+				MatchSnippet: snippetAround(line, match, rule.Secret),
+			})
 		}
 	}
 
 	return findings, scanner.Err()
+}
+
+var envTemplateRe = regexp.MustCompile(`\.(?:example|sample|template|dist|defaults?)$`)
+
+func firstValidMatch(rule Rule, line string) string {
+	for _, m := range rule.Pattern.FindAllString(line, -1) {
+		if rule.Validate == nil || rule.Validate(m) {
+			return m
+		}
+	}
+	return ""
+}
+
+// snippetAround returns up to ~100 chars of context around match, masking it if it is a secret
+// so findings never re-leak credentials into (often public) CI logs.
+func snippetAround(line, match string, secret bool) string {
+	i := strings.Index(line, match)
+	shown := match
+	if secret {
+		shown = Mask(match)
+	}
+	start, end := max(0, i-40), min(len(line), i+len(match)+40)
+	out := strings.TrimSpace(line[start:i] + shown + line[i+len(match):end])
+	if start > 0 {
+		out = "..." + out
+	}
+	if end < len(line) {
+		out += "..."
+	}
+	return strings.ToValidUTF8(out, "")
+}
+
+// Mask keeps a short recognizable prefix of a secret and hides the rest.
+func Mask(secret string) string {
+	// URLs: hide only the password so the host stays visible (postgres://app:****@db.host)
+	if at := strings.LastIndex(secret, "@"); strings.Contains(secret, "://") && at > 0 {
+		if colon := strings.LastIndex(secret[:at], ":"); colon > strings.Index(secret, "://")+2 {
+			return secret[:colon+1] + "********" + secret[at:]
+		}
+	}
+	keep := min(8, len(secret)/4)
+	return secret[:keep] + strings.Repeat("*", 8)
 }
 
 // gitIgnored reports whether git ignores path; false when git or a repo is unavailable.
