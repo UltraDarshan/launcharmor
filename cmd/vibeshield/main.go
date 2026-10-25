@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/UltraDarshan/vibeshield/pkg/auditor"
 	"github.com/UltraDarshan/vibeshield/pkg/dbaudit"
+	"github.com/UltraDarshan/vibeshield/pkg/infra"
 )
 
 const version = "0.1.0-alpha"
@@ -41,6 +43,25 @@ func main() {
 			target = os.Args[2]
 		}
 		runDBAudit(target)
+	case "harden":
+		appName := "my-app"
+		port := 3000
+		domain := "app.example.com"
+		outputDir := "./deploy"
+
+		if len(os.Args) > 2 {
+			appName = os.Args[2]
+		}
+		if len(os.Args) > 3 {
+			if p, err := strconv.Atoi(os.Args[3]); err == nil {
+				port = p
+			}
+		}
+		if len(os.Args) > 4 {
+			domain = os.Args[4]
+		}
+
+		runHarden(appName, port, domain, outputDir)
 	case "version":
 		fmt.Printf("VibeShield version %s (Linux/x86_64)\n", version)
 	default:
@@ -148,10 +169,37 @@ func runDBAudit(target string) {
 	}
 }
 
+func runHarden(appName string, port int, domain string, outputDir string) {
+	fmt.Printf("%s[VibeShield v%s]%s Generating hardened Linux infrastructure configs...\n\n", colorCyan, version, colorReset)
+
+	opts := infra.ConfigOptions{
+		AppName:     appName,
+		Domain:      domain,
+		Port:        port,
+		User:        "www-data",
+		WorkingDir:  "/var/www/" + appName,
+		ExecCommand: fmt.Sprintf("/usr/bin/node /var/www/%s/server.js", appName),
+	}
+
+	if err := infra.WriteConfigFiles(outputDir, opts); err != nil {
+		fmt.Printf("Failed to generate configuration: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("%s✔ Configuration generated successfully in: %s%s%s\n\n", colorGreen, colorBold, outputDir, colorReset)
+	fmt.Printf("  1. %sCaddyfile%s              -> Modern HTTPS reverse proxy with strict HSTS, CSP, and zstd\n", colorBold, colorReset)
+	fmt.Printf("  2. %s%s.nginx.conf%s      -> Nginx reverse proxy with IP rate-limiting zones\n", colorBold, appName, colorReset)
+	fmt.Printf("  3. %s%s.service%s         -> Sandboxed systemd unit with Linux kernel security isolation\n\n", colorBold, appName, colorReset)
+	fmt.Println("To apply on Linux:")
+	fmt.Printf("  sudo cp %s/%s.service /etc/systemd/system/\n", outputDir, appName)
+	fmt.Printf("  sudo systemctl daemon-reload && sudo systemctl enable --now %s\n", appName)
+}
+
 func printHelp() {
 	fmt.Println("VibeShield - Security Scanner & Linux Infra Hardener for Vibe-Coded Apps")
 	fmt.Println("\nUsage:")
-	fmt.Println("  vibeshield scan [dir]       Scan code, secrets, and configuration rules")
-	fmt.Println("  vibeshield db-audit [dir]   Audit SQL/Supabase schema migrations for open tables (RLS)")
-	fmt.Println("  vibeshield version          Display version information")
+	fmt.Println("  vibeshield scan [dir]                       Scan code, secrets, and configuration rules")
+	fmt.Println("  vibeshield db-audit [dir]                   Audit SQL/Supabase schema migrations for open tables (RLS)")
+	fmt.Println("  vibeshield harden [name] [port] [domain]    Generate hardened Linux Caddy, Nginx & systemd configs")
+	fmt.Println("  vibeshield version                          Display version information")
 }
