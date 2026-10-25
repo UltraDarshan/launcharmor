@@ -36,14 +36,39 @@ Prebuilt binaries for Linux, macOS (amd64/arm64) and Windows are on the [release
 ## 🚀 Commands & Usage
 
 ### 1. Security Scan (`vibeshield scan`)
-Audits source code files, configurations, and environment files for leaked credentials and risky patterns. Exits non-zero on any CRITICAL/HIGH finding, so it can gate CI:
+Finds the leaks that actually happen in AI-built apps. Exits non-zero on any CRITICAL/HIGH finding, so it can gate CI:
 ```bash
 vibeshield scan /path/to/project
+vibeshield scan . --format sarif > vibeshield.sarif   # or --format json
 ```
-False positive? Add `vibeshield:ignore` in a comment on that line. Local `.env` files that git already ignores are skipped.
+
+| Rule | Detects | Severity |
+| :--- | :--- | :--- |
+| VS-000 | Committed `.env` files (templates like `.env.example` are fine) | High |
+| VS-001 | OpenAI keys, including `sk-proj-` / `sk-svcacct-` | Critical |
+| VS-002 | Stripe live secret and restricted keys | Critical |
+| VS-003 | Supabase **service_role** JWTs (the JWT is decoded; public anon keys are not flagged) | Critical |
+| VS-004 | Dynamic code / shell execution | High |
+| VS-005 | Wildcard CORS | Medium |
+| VS-006 | Anthropic API keys | Critical |
+| VS-007 | AWS access keys | Critical |
+| VS-008 | Google API keys (Gemini/Maps; Firebase web keys are public by design) | Medium |
+| VS-009 | GitHub tokens | Critical |
+| VS-010 | Private keys | Critical |
+| VS-011 | Database URLs with a real password on a remote host | High |
+| VS-012 | Secrets in browser-bundled env vars (`NEXT_PUBLIC_`, `VITE_`, `EXPO_PUBLIC_`…) | Critical |
+| VS-013 | Slack tokens | High |
+| VS-020 | Firebase rules with `if true` / `".read": true` | Critical |
+
+Placeholders (`sk-xxxx`, `your-api-key`), local dev databases and gitignored `.env` files are skipped, and secrets are **masked in all output** so findings never re-leak keys into CI logs. False positive? Add `vibeshield:ignore` in a comment on that line.
 
 ### 2. Database RLS Verification (`vibeshield db-audit`)
-Parses database migrations and SQL schema files to verify that all tables have Row Level Security enabled:
+Replays your SQL / Supabase migrations in order and reports every `public` table anyone can reach through the Supabase API:
+- tables without Row Level Security (or with RLS disabled again later),
+- RLS tables with a policy like `FOR UPDATE USING (true)` that lets anyone change every row,
+- `FOR SELECT USING (true)` policies, as a warning (fine for public posts, not for user data).
+
+Each finding comes with fix SQL that is checked to run on Postgres 17.
 ```bash
 vibeshield db-audit /path/to/project
 ```
@@ -62,6 +87,7 @@ vibeshield harden <name> <port> <domain> [out-dir]   # e.g. vibeshield harden my
   with:
     target_dir: '.'
     audit_db: 'true'
+    sarif: 'true'   # optional: show findings in the Security tab (needs permissions: security-events: write)
 ```
 
 ### 5. Edge firewall (Cloudflare Worker, free tier)
