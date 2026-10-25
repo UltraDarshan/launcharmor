@@ -89,18 +89,21 @@ func runScan(target string) {
 
 	if len(report.Findings) == 0 {
 		fmt.Printf("\n%s✔ 0 vulnerabilities detected!%s Security Score: %s%d/100%s\n", colorGreen, colorReset, colorBold, report.Score, colorReset)
-		return
+		os.Exit(0)
 	}
 
 	fmt.Printf("\n%s🚨 Found %d potential vulnerabilities:%s\n\n", colorRed, len(report.Findings), colorReset)
 
+	hasCriticalOrHigh := false
 	for i, f := range report.Findings {
 		var sevColor string
 		switch f.Severity {
 		case auditor.SeverityCritical:
 			sevColor = colorRed
+			hasCriticalOrHigh = true
 		case auditor.SeverityHigh:
 			sevColor = colorYellow
+			hasCriticalOrHigh = true
 		default:
 			sevColor = colorCyan
 		}
@@ -125,6 +128,12 @@ func runScan(target string) {
 	fmt.Printf("=============================================\n")
 	fmt.Printf("  Final Security Score: %s%s%d / 100%s\n", colorBold, scoreColor, report.Score, colorReset)
 	fmt.Printf("=============================================\n")
+
+	// Fail CI/CD step if Critical or High severity issues are found
+	if hasCriticalOrHigh {
+		fmt.Printf("%s[CI/CD ERROR] Build rejected due to CRITICAL/HIGH security findings.%s\n", colorRed, colorReset)
+		os.Exit(1)
+	}
 }
 
 func runDBAudit(target string) {
@@ -163,7 +172,9 @@ func runDBAudit(target string) {
 	}
 
 	if dbResult.VulnerableTables > 0 {
-		fmt.Printf("\n%s[CRITICAL]%s %d table(s) can be read/written by anyone using Supabase/PostgREST anonymously!\n", colorRed, colorReset, dbResult.VulnerableTables)
+		fmt.Printf("\n%s[CRITICAL]%s %d table(s) can be read/written by anyone anonymously!\n", colorRed, colorReset, dbResult.VulnerableTables)
+		fmt.Printf("%s[CI/CD ERROR] Build rejected due to open database tables (missing RLS).%s\n", colorRed, colorReset)
+		os.Exit(1)
 	} else {
 		fmt.Printf("\n%s✔ All tables have Row Level Security enabled!%s\n", colorGreen, colorReset)
 	}

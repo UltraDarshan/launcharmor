@@ -1,0 +1,31 @@
+name: CI & Self-Audit
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Build, Test & Self-Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Build binary
+        run: make build
+
+      - name: Run automated unit tests
+        run: make test
+
+      - name: Run self-audit with VibeShield
+        run: |
+          ./bin/vibeshield scan .
+          ./bin/vibeshield db-audit .

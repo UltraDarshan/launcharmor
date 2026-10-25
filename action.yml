@@ -1,0 +1,39 @@
+name: 'VibeShield Security Audit'
+description: 'Zero-cost security auditor & database RLS checker for vibe-coded applications'
+author: 'UltraDarshan'
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  target_dir:
+    description: 'Directory path to scan'
+    required: false
+    default: '.'
+  audit_db:
+    description: 'Whether to audit SQL schema files for missing Row Level Security (RLS)'
+    required: false
+    default: 'true'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.26'
+
+    - name: Run VibeShield Scanner
+      shell: bash
+      run: |
+        echo "::group::VibeShield Code & Secret Audit"
+        go run ${{ github.action_path }}/cmd/vibeshield scan ${{ inputs.target_dir }}
+        echo "::endgroup::"
+
+    - name: Run VibeShield Database Audit
+      if: inputs.audit_db == 'true'
+      shell: bash
+      run: |
+        echo "::group::VibeShield Database RLS Audit"
+        go run ${{ github.action_path }}/cmd/vibeshield db-audit ${{ inputs.target_dir }}
+        echo "::endgroup::"
