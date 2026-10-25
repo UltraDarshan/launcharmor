@@ -7,11 +7,11 @@ VibeShieldは、AIツール（Cursor、v0、Bolt等）によって高速開発�
 
 | ID | 攻撃ベクトル (Threat) | VibeShieldの対策 (Mitigation) |
 | :--- | :--- | :--- |
-| **TV-01** | APIキー・クレデンシャルの流出 | 静的解析エンジンにより、コミットされた `.env`、OpenAI、Stripe、Supabase秘密鍵を検出。 |
+| **TV-01** | APIキー・クレデンシャルの流出 | 行単位の正規表現スキャナーにより、コミットされた `.env`、OpenAI、Stripe、Supabase秘密鍵を検出。 |
 | **TV-02** | データベースの不正アクセス (IDOR) | SQLファイルを走査し、PostgreSQLおよびSupabaseの行レベルセキュリティ (RLS) 未適用テーブルを検出。 |
 | **TV-03** | リモートコード実行 (RCE) | バックエンド内のエスケープされていない `eval()` や危険なシェル実行関数を検出。 |
-| **TV-04** | APIクレジット枯渇・DoS攻撃 | Caddy/Nginx向けのリバースプロキシ設定を自動生成し、IPレート制限 (`limit_req_zone`) を強制適用。 |
-| **TV-05** | Linuxホストの特権昇格・侵害 | `NoNewPrivileges`、`ProtectSystem=strict`、専用 `/tmp` 名前空間を含む安全な `systemd` ユニットファイルを自動生成。 |
+| **TV-04** | APIクレジット枯渇・DoS攻撃 | Nginx設定でIP単位のレート制限 (`limit_req_zone`) を適用。オプションのCloudflare Workerでエッジでのレート制限も可能。 |
+| **TV-05** | Linuxホストの特権昇格・侵害 | `NoNewPrivileges`、`ProtectSystem=strict`、専用 `/tmp`、ケーパビリティ全削除、システムコール許可リストを含む `systemd` ユニットを自動生成（`systemd-analyze security`: 1.5 OK）。 |
 
 ---
 
@@ -27,7 +27,7 @@ AIによって生成されたコードは、未知の脆弱性を含む可能性
 |  | Caddy / Nginx      |          | Systemd Unit (Sandboxed) |  |
 |  | - 常時HTTPS化      |  Proxy   | - NoNewPrivileges=true   |  |
 |  | - IPレート制限     | -------> | - ProtectSystem=strict   |  |
-|  | - HSTS / CSP       |  :3000   | - PrivateTmp=true        |  |
+|  | - HSTS / 各種ヘッダ|  :3000   | - PrivateTmp=true        |  |
 |  +--------------------+          | - MemoryMax=512M         |  |
 |                                  +--------------------------+  |
 +----------------------------------------------------------------+
@@ -35,7 +35,8 @@ AIによって生成されたコードは、未知の脆弱性を含む可能性
 
 ### 使用しているLinuxカーネル保護ディレクティブ:
 1. `NoNewPrivileges=true`: プロセスおよび子プロセスによる `setuid`/`setgid` 特権昇格を完全に禁止。
-2. `ProtectSystem=strict`: `/usr`、`/boot`、`/etc` などのシステムディレクトリを完全な読み取り専用としてマウント。
+2. `ProtectSystem=strict`: `ReadWritePaths`（アプリディレクトリ）以外のファイルシステム全体を読み取り専用としてマウント。
 3. `PrivateTmp=true`: サービス専用の独立したファイルシステム名前空間を `/tmp` に割り当て、プロセス間の一時ファイル干渉を防止。
 4. `ProtectHome=true`: `/home` ディレクトリをマウント解除し、他ユーザーの個人データへのアクセスを遮断。
 5. `MemoryMax=512M` & `TasksMax=100`: メモリ枯渇やフォークボムによるLinuxホスト全体の停止（DoS）を防止。
+6. `CapabilityBoundingSet=` & `SystemCallFilter=@system-service`: 全Linuxケーパビリティを削除し、一般的なサービスに必要なシステムコールのみに制限。`MemoryDenyWriteExecute` はV8/Node.jsのJITを壊すため意図的に除外。
