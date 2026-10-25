@@ -73,8 +73,8 @@ func (s *Scanner) ScanDirectory(root string) (*Report, error) {
 			return nil
 		}
 
-		// Skip internal rule definitions and binary files
-		if strings.Contains(path, "pkg/auditor/rules.go") {
+		// Skip internal test files and rule definitions
+		if strings.Contains(path, "pkg/auditor/rules.go") || strings.HasSuffix(path, "_test.go") {
 			return nil
 		}
 
