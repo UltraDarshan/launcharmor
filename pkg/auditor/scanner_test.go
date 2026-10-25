@@ -2,6 +2,7 @@ package auditor
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -68,5 +69,27 @@ func TestRulesMatchRealWorldForms(t *testing.T) {
 		if line, ok := cases[r.ID]; ok && !r.Pattern.MatchString(line) {
 			t.Errorf("%s did not match %s", r.ID, line)
 		}
+	}
+}
+
+func TestGitIgnoredDoesNotRunRepoFsmonitor(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "PWNED")
+	for _, args := range [][]string{{"init", "-q"}, {"config", "core.fsmonitor", "touch " + marker + "; false"}} {
+		if err := exec.Command("git", append([]string{"-C", dir}, args...)...).Run(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	os.WriteFile(filepath.Join(dir, ".gitignore"), []byte(".env\n"), 0644)
+	os.WriteFile(filepath.Join(dir, ".env"), []byte("X=1\n"), 0644)
+
+	if !gitIgnored(filepath.Join(dir, ".env")) {
+		t.Error("expected .env to be reported as ignored")
+	}
+	if _, err := os.Stat(marker); err == nil {
+		t.Error("scanned repo's core.fsmonitor command was executed")
 	}
 }
