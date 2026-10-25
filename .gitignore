@@ -1,0 +1,11 @@
+# Binaries
+bin/
+*.exe
+
+# Dependencies
+vendor/
+
+# OS and Editor
+.DS_Store
+.vscode/
+.idea/
