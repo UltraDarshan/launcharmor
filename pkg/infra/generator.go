@@ -17,7 +17,7 @@ type ConfigOptions struct {
 }
 
 // GenerateCaddyfile returns a hardened reverse-proxy configuration for Caddy with automated HTTPS,
-// security headers, and modern rate-limiting.
+// security headers, and compression (core Caddy has no rate limiter; use the Nginx config for that).
 func GenerateCaddyfile(opts ConfigOptions) string {
 	domain := opts.Domain
 	if domain == "" {
@@ -32,41 +32,39 @@ func GenerateCaddyfile(opts ConfigOptions) string {
 # Target: %s -> Local Service :%d
 
 %s {
-    # Reverse proxy with health checks
-    reverse_proxy 127.0.0.1:%d {
-        header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
-    }
+	# Reverse proxy (Caddy sets X-Forwarded-For/Proto/Host itself)
+	reverse_proxy 127.0.0.1:%d {
+		header_up X-Real-IP {remote_host}
+	}
 
-    # Strict Security Headers
-    header {
-        # Enforce HTTPS strictly for 1 year including subdomains
-        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-        # Prevent MIME-type sniffing
-        X-Content-Type-Options "nosniff"
-        # Disallow embedding in frames/iframes to stop clickjacking
-        X-Frame-Options "DENY"
-        # Cross-Site Scripting protection
-        X-XSS-Protection "1; mode=block"
-        # Referrer policy privacy protection
-        Referrer-Policy "strict-origin-when-cross-origin"
-        # Restrict browser APIs (camera, microphone, geolocation)
-        Permissions-Policy "camera=(), microphone=(), geolocation=()"
-        # Hide backend server identity
-        -Server
-    }
+	# Strict Security Headers
+	header {
+		# Enforce HTTPS for 1 year including subdomains (add "; preload" only once you commit to hstspreload.org)
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		# Prevent MIME-type sniffing
+		X-Content-Type-Options "nosniff"
+		# Disallow embedding in frames/iframes to stop clickjacking
+		X-Frame-Options "DENY"
+		# Disable the legacy browser XSS auditor (it can introduce leaks; OWASP recommends 0)
+		X-XSS-Protection "0"
+		# Referrer policy privacy protection
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Restrict browser APIs (camera, microphone, geolocation)
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		# Hide backend server identity
+		-Server
+	}
 
-    # Enable modern compression (Gzip and Zstandard)
-    encode zstd gzip
+	# Enable modern compression (Gzip and Zstandard)
+	encode zstd gzip
 
-    # Logging with privacy-focused rotation
-    log {
-        output file /var/log/caddy/%s.access.log {
-            roll_size 10mb
-            roll_keep 5
-        }
-    }
+	# Logging with privacy-focused rotation
+	log {
+		output file /var/log/caddy/%s.access.log {
+			roll_size 10mb
+			roll_keep 5
+		}
+	}
 }
 `, opts.AppName, port, domain, port, opts.AppName)
 }
@@ -100,9 +98,9 @@ server {
     listen [::]:443 ssl http2;
     server_name %s;
 
-    # SSL Certificates (managed via certbot or manual)
-    # ssl_certificate /etc/letsencrypt/live/%s/fullchain.pem;
-    # ssl_certificate_key /etc/letsencrypt/live/%s/privkey.pem;
+    # SSL Certificates: issue first with: sudo certbot certonly --standalone -d %s
+    ssl_certificate /etc/letsencrypt/live/%s/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/%s/privkey.pem;
 
     # SSL Hardening (TLS 1.2 and 1.3 only)
     ssl_protocols TLSv1.2 TLSv1.3;
@@ -110,13 +108,14 @@ server {
     ssl_ciphers HIGH:!aNULL:!MD5:!3DES;
     ssl_session_cache shared:SSL:10m;
     ssl_session_timeout 1d;
+    server_tokens off;
 
     # Security Headers
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "DENY" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-    add_header Referrer-Policy "no-referrer-when-downgrade" always;
+    add_header X-XSS-Protection "0" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
     # Rate Limiting & Proxying
     location / {
@@ -132,7 +131,7 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
-`, opts.AppName, opts.AppName, domain, domain, domain, domain, opts.AppName, port)
+`, opts.AppName, opts.AppName, domain, domain, domain, domain, domain, opts.AppName, port)
 }
 
 // GenerateSystemdService returns a production Linux systemd unit file with modern Linux security sandboxing.
@@ -152,7 +151,8 @@ func GenerateSystemdService(opts ConfigOptions) string {
 
 	return fmt.Sprintf(`[Unit]
 Description=%s Vibe-Coded Service (Protected by VibeShield)
-After=network.target
+Wants=network-online.target
+After=network-online.target
 
 [Service]
 Type=simple
@@ -170,7 +170,7 @@ Environment=NODE_ENV=production
 # Prevent process from gaining new privileges (blocks SUID escalation)
 NoNewPrivileges=true
 
-# Mount filesystem read-only for system paths (/usr, /boot, /etc)
+# Mount the entire filesystem read-only (except /dev, /proc, /sys and ReadWritePaths)
 ProtectSystem=strict
 
 # Provide private isolated /tmp directory per service
@@ -179,7 +179,7 @@ PrivateTmp=true
 # Restrict access to /dev (prevent raw disk/device access)
 PrivateDevices=true
 
-# Hide real /home from process (only WorkingDirectory is accessible)
+# Make /home, /root and /run/user inaccessible to the process
 ProtectHome=true
 
 # Prevent changing kernel tunables (/proc/sys, /sys)
@@ -190,6 +190,28 @@ ProtectKernelModules=true
 
 # Prevent modifying control groups
 ProtectControlGroups=true
+
+# Hide other users' processes and block kernel log / clock / hostname changes
+ProtectProc=invisible
+ProtectKernelLogs=true
+ProtectClock=true
+ProtectHostname=true
+
+# Drop every Linux capability; the app binds an unprivileged port behind the proxy
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+
+# Only IPv4/IPv6/Unix sockets, and only syscalls a normal service needs
+# (MemoryDenyWriteExecute is left off on purpose: it breaks the V8/Node.js JIT)
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+UMask=0027
 
 # Allow read/write access ONLY to project directory
 ReadWritePaths=%s
