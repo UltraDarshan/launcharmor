@@ -220,31 +220,60 @@ func firstValidMatch(rule Rule, line string) string {
 	return ""
 }
 
-// snippetAround returns up to ~100 chars of context around match, masking it if it is a secret
-// so findings never re-leak credentials into (often public) CI logs.
+// assignedValueRe captures the value assigned right after a matched name, e.g. the "value" in NAME="value".
+var assignedValueRe = regexp.MustCompile(`^(\s*[:=]\s*["'\x60]?)([^\s"'\x60,;)]+)`)
+
+// snippetAround returns up to ~100 chars of context around match. It masks the match if it is a
+// secret, the value assigned to it, and anything else on the line that looks like a credential,
+// so findings never re-leak keys into (often public) CI logs.
 func snippetAround(line, match string, secret bool) string {
 	i := strings.Index(line, match)
+	rest := line[i+len(match):]
 	shown := match
 	if secret {
 		shown = Mask(match)
+	} else if m := assignedValueRe.FindStringSubmatch(rest); m != nil && !strings.HasPrefix(m[2], "process.env") {
+		rest = m[1] + Mask(m[2]) + rest[len(m[0]):]
 	}
-	start, end := max(0, i-40), min(len(line), i+len(match)+40)
-	out := strings.TrimSpace(line[start:i] + shown + line[i+len(match):end])
+	start := max(0, i-40)
+	masked := maskSecrets(line[start:i]) + shown + maskSecrets(rest)
+	end := min(len(masked), len(line[start:i])+len(shown)+40)
+	out := strings.TrimSpace(masked[:end])
 	if start > 0 {
 		out = "..." + out
 	}
-	if end < len(line) {
+	if end < len(masked) {
 		out += "..."
 	}
 	return strings.ToValidUTF8(out, "")
 }
 
+// maskSecrets masks every credential-shaped string, whether or not it passed a rule's validator.
+func maskSecrets(text string) string {
+	for _, r := range secretRules {
+		text = r.Pattern.ReplaceAllStringFunc(text, Mask)
+	}
+	return text
+}
+
+var secretRules = func() []Rule {
+	var out []Rule
+	for _, r := range BuiltinRules() {
+		if r.Secret {
+			out = append(out, r)
+		}
+	}
+	return out
+}()
+
 // Mask keeps a short recognizable prefix of a secret and hides the rest.
 func Mask(secret string) string {
-	// URLs: hide only the password so the host stays visible (postgres://app:****@db.host)
-	if at := strings.LastIndex(secret, "@"); strings.Contains(secret, "://") && at > 0 {
-		if colon := strings.LastIndex(secret[:at], ":"); colon > strings.Index(secret, "://")+2 {
-			return secret[:colon+1] + "********" + secret[at:]
+	// URLs: hide the whole password, even if it contains ':' (postgres://app:****@db.host)
+	if scheme := strings.Index(secret, "://"); scheme >= 0 {
+		if at := strings.LastIndex(secret, "@"); at > scheme {
+			if colon := strings.Index(secret[scheme+3:at], ":"); colon >= 0 {
+				return secret[:scheme+3+colon+1] + "********" + secret[at:]
+			}
 		}
 	}
 	keep := min(8, len(secret)/4)
