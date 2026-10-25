@@ -1,0 +1,16 @@
+# Deploy: cd pkg/infra && npx wrangler deploy
+name = "vibeshield-edge"
+main = "cloudflare-worker.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+ORIGIN_HOSTNAME = "myapp.example.com" # change to your real origin host
+
+# 60 requests per 60s per client IP (Workers Rate Limiting API)
+[[ratelimits]]
+name = "RATE_LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 60
+  period = 60
