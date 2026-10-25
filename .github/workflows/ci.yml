@@ -47,3 +47,19 @@ jobs:
       - uses: ./vibeshield
         with:
           target_dir: sample
+
+      # The action must also BLOCK a leaky project, not just pass a clean one
+      - name: Create a leaky sample project
+        run: |
+          mkdir leaky
+          echo "const stripe = Stripe(\"sk_""live_51HxYz2AbCdEfGh3IjKlMn4OpQr\");" > leaky/pay.js
+      - uses: ./vibeshield
+        id: leaky
+        continue-on-error: true
+        with:
+          target_dir: leaky
+      - name: Assert the leaky project was rejected
+        if: steps.leaky.outcome != 'failure'
+        run: |
+          echo "::error::VibeShield did not fail on a hardcoded Stripe key"
+          exit 1

@@ -1,5 +1,5 @@
 name: 'VibeShield Security Audit'
-description: 'Zero-cost security auditor & database RLS checker for vibe-coded applications'
+description: 'Finds leaked API keys, open Supabase tables and open Firebase rules in AI-built apps'
 author: 'UltraDarshan'
 branding:
   icon: 'shield'
@@ -11,9 +11,13 @@ inputs:
     required: false
     default: '.'
   audit_db:
-    description: 'Whether to audit SQL schema files for missing Row Level Security (RLS)'
+    description: 'Whether to audit SQL migrations for missing Row Level Security and open policies'
     required: false
     default: 'true'
+  sarif:
+    description: 'Upload findings to the GitHub Security tab (needs `permissions: security-events: write`)'
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
@@ -31,20 +35,52 @@ runs:
       run: go build -o "$RUNNER_TEMP/vibeshield" ./cmd/vibeshield
 
     - name: Run VibeShield Scanner
+      id: scan
       shell: bash
       env:
         TARGET_DIR: ${{ inputs.target_dir }}
+        SARIF: ${{ inputs.sarif }}
       run: |
         echo "::group::VibeShield Code & Secret Audit"
-        "$RUNNER_TEMP/vibeshield" scan "$TARGET_DIR"
+        "$RUNNER_TEMP/vibeshield" scan "$TARGET_DIR" || echo "failed=true" >> "$GITHUB_OUTPUT"
         echo "::endgroup::"
+        if [ "$SARIF" = "true" ]; then
+          "$RUNNER_TEMP/vibeshield" scan "$TARGET_DIR" --format sarif > "$RUNNER_TEMP/vibeshield-scan.sarif" || true
+        fi
 
     - name: Run VibeShield Database Audit
+      id: db
       if: inputs.audit_db == 'true'
       shell: bash
       env:
         TARGET_DIR: ${{ inputs.target_dir }}
+        SARIF: ${{ inputs.sarif }}
       run: |
         echo "::group::VibeShield Database RLS Audit"
-        "$RUNNER_TEMP/vibeshield" db-audit "$TARGET_DIR"
+        "$RUNNER_TEMP/vibeshield" db-audit "$TARGET_DIR" || echo "failed=true" >> "$GITHUB_OUTPUT"
         echo "::endgroup::"
+        if [ "$SARIF" = "true" ]; then
+          "$RUNNER_TEMP/vibeshield" db-audit "$TARGET_DIR" --format sarif > "$RUNNER_TEMP/vibeshield-db.sarif" || true
+        fi
+
+    # One upload per category: GitHub rejects several runs of the same tool+category in one upload
+    - name: Upload code findings to GitHub Security
+      if: inputs.sarif == 'true'
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ runner.temp }}/vibeshield-scan.sarif
+        category: vibeshield-scan
+
+    - name: Upload database findings to GitHub Security
+      if: inputs.sarif == 'true' && inputs.audit_db == 'true'
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ runner.temp }}/vibeshield-db.sarif
+        category: vibeshield-db
+
+    - name: Fail on critical or high findings
+      if: steps.scan.outputs.failed == 'true' || steps.db.outputs.failed == 'true'
+      shell: bash
+      run: |
+        echo "::error::VibeShield found critical or high severity issues. See the logs above for each fix."
+        exit 1
