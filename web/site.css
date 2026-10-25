@@ -1,0 +1,21 @@
+/* Source for docs/site.css — rebuild with `make site` */
+@import "tailwindcss";
+@source "../docs/index.html";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+.bg-grid {
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+}
+
+/* One orchestrated moment: the hero terminal prints line by line */
+.term-line { opacity: 0; animation: print 0.01s steps(1) forwards; animation-delay: calc(var(--d, 0) * 110ms + 300ms); }
+@keyframes print { to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .term-line { opacity: 1; animation: none; } }

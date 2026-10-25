@@ -5,7 +5,7 @@
 
 [![Go Version](https://img.shields.io/badge/go-1.26+-00ADD8.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Build & Test](https://img.shields.io/badge/tests-passing-brightgreen.svg)]()
+[![CI](https://github.com/UltraDarshan/vibeshield/actions/workflows/ci.yml/badge.svg)](https://github.com/UltraDarshan/vibeshield/actions/workflows/ci.yml)
 
 ---
 
@@ -21,25 +21,51 @@ AI coding tools (Cursor, Bolt, v0, Lovable, Claude) allow anyone to prototype an
 
 ---
 
+## 📦 Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/UltraDarshan/vibeshield/main/install.sh | bash
+# or, with Go installed:
+go install github.com/UltraDarshan/vibeshield/cmd/vibeshield@latest
+```
+
+Prebuilt binaries for Linux, macOS (amd64/arm64) and Windows are on the [releases page](https://github.com/UltraDarshan/vibeshield/releases).
+
+---
+
 ## 🚀 Commands & Usage
 
 ### 1. Security Scan (`vibeshield scan`)
-Audits source code files, configurations, and environment files for leaked credentials and risky patterns:
+Audits source code files, configurations, and environment files for leaked credentials and risky patterns. Exits non-zero on any CRITICAL/HIGH finding, so it can gate CI:
 ```bash
-./bin/vibeshield scan /path/to/project
+vibeshield scan /path/to/project
 ```
+False positive? Add `vibeshield:ignore` in a comment on that line. Local `.env` files that git already ignores are skipped.
 
 ### 2. Database RLS Verification (`vibeshield db-audit`)
 Parses database migrations and SQL schema files to verify that all tables have Row Level Security enabled:
 ```bash
-./bin/vibeshield db-audit /path/to/project
+vibeshield db-audit /path/to/project
 ```
 
 ### 3. Linux Infrastructure Hardening (`vibeshield harden`)
-Generates production-grade, hardened Caddy / Nginx reverse proxy configs and sandboxed Linux `systemd` service files:
+Generates hardened Caddy / Nginx reverse proxy configs and a sandboxed `systemd` unit (`systemd-analyze security` exposure score: **1.5 OK**):
 ```bash
-./bin/vibeshield harden myapp 3000 myapp.com ./deploy
+vibeshield harden <name> <port> <domain> [out-dir]   # e.g. vibeshield harden myapp 3000 myapp.com ./deploy
 ```
+
+### 4. GitHub Action
+```yaml
+- uses: actions/checkout@v4
+- name: VibeShield security audit
+  uses: UltraDarshan/vibeshield@main
+  with:
+    target_dir: '.'
+    audit_db: 'true'
+```
+
+### 5. Edge firewall (Cloudflare Worker, free tier)
+[`pkg/infra/cloudflare-worker.js`](pkg/infra/cloudflare-worker.js) blocks exploit probes (`/.env`, `/.git`, `wp-admin`), rate-limits per IP, and masks leaked OpenAI/Stripe keys in responses. Set `ORIGIN_HOSTNAME` in [`wrangler.toml`](pkg/infra/wrangler.toml), then `cd pkg/infra && npx wrangler deploy`.
 
 ---
 
@@ -47,7 +73,7 @@ Generates production-grade, hardened Caddy / Nginx reverse proxy configs and san
 
 ```bash
 # Clone the repository
-git clone git@github.com:UltraDarshan/vibeshield.git
+git clone https://github.com/UltraDarshan/vibeshield.git
 cd vibeshield
 
 # Build binary
@@ -59,7 +85,7 @@ make test
 
 ---
 
-## 🇯PN 日本語概要 (Overview for Japan Tech Infrastructure)
+## 🇯🇵 日本語概要 (Overview for Japan Tech Infrastructure)
 
 VibeShieldは、AIツール（Cursor、v0、Bolt等）で高速開発されたWebアプリケーション向けのセキュリティ監査およびLinuxインフラ保護ツールです。
 APIキーの露出、データベースのRLS（行レベルセキュリティ）未設定、不適切なLinuxプロセス権限などの脆弱性を瞬時に検出し、本番環境向けのセキュアな構成（Caddy/Nginx、systemdサンドボックス）を自動生成します。
@@ -69,4 +95,4 @@ APIキーの露出、データベースのRLS（行レベルセキュリティ�
 ---
 
 ## 📄 License
-MIT License.
+MIT License. See [LICENSE](LICENSE).
