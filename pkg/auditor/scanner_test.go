@@ -18,7 +18,7 @@ func TestScannerDetectsSecrets(t *testing.T) {
 	testFile := filepath.Join(tempDir, "app.js")
 	content := `
 const openaiKey = "sk-` + "Q2w3E4r5T6y7U8i9O0pAsDfGhJkL1234" + `";
-const stripeKey = "sk_` + "live_51HxYz2AbCdEfGh3IjKlMn4OpQr" + `";
+const stripeKey = "sk_li` + "ve_51HxYz2AbCdEfGh3IjKlMn4OpQr" + `";
 `
 	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
 		t.Fatalf("Failed to write test file: %v", err)
@@ -46,8 +46,8 @@ func TestScannerEdgeCases(t *testing.T) {
 
 	dir := t.TempDir()
 	content := strings.Repeat("x", 70000) + "\n" + // longer than bufio's 64KB default
-		`const a = "sk_` + `live_51HxYz2AbCdEfGh3IjKlMn4OpQr";` + "\n" +
-		`const b = "sk_` + `live_51HxYz2AbCdEfGh3IjKlMn4OpQr"; // vibeshield:ignore` + "\n"
+		`const a = "sk_li` + `ve_51HxYz2AbCdEfGh3IjKlMn4OpQr";` + "\n" +
+		`const b = "sk_li` + `ve_51HxYz2AbCdEfGh3IjKlMn4OpQr"; // vibeshield:ignore` + "\n"
 	if err := os.WriteFile(filepath.Join(dir, "bundle.js"), []byte(content), 0644); err != nil {
 		t.Fatal(err)
 	}

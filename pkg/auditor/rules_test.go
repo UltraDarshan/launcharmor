@@ -23,8 +23,8 @@ func TestRuleAccuracy(t *testing.T) {
 		// Leaks that must be caught
 		{"VS-001", `const ai = new OpenAI({ apiKey: "sk-` + `proj-Ab3dEf9GhIjK2lMnOpQ7rStUvWx_Yz-1" })`, true},
 		{"VS-001", `OPENAI_API_KEY="sk-` + `Q2w3E4r5T6y7U8i9O0pAsDfGhJkL1234567890abcdEF"`, true},
-		{"VS-002", `stripe = Stripe("sk_` + `live_51HxYz2AbCdEfGh3IjKlMn4OpQr")`, true},
-		{"VS-002", `key: "rk_` + `live_51HxYz2AbCdEfGh3IjKlMn4OpQr"`, true},
+		{"VS-002", `stripe = Stripe("sk_li` + `ve_51HxYz2AbCdEfGh3IjKlMn4OpQr")`, true},
+		{"VS-002", `key: "rk_li` + `ve_51HxYz2AbCdEfGh3IjKlMn4OpQr"`, true},
 		{"VS-003", `createClient(url, "` + jwt("service_role") + `")`, true},
 		{"VS-006", `"sk-` + `ant-api03-` + strings.Repeat("Ab3_Cd9-Ef7G", 8) + `"`, true},
 		{"VS-007", `aws_access_key_id = AKIA` + `Z7QW3ERT5YUI8OPL`, true},
@@ -81,7 +81,7 @@ func TestFirebaseRuleOnlyInRulesFiles(t *testing.T) {
 }
 
 func TestSnippetMasksSecret(t *testing.T) {
-	key := "sk_" + "live_51HxYz2AbCdEfGh3IjKlMn4OpQr"
+	key := "sk_li" + "ve_51HxYz2AbCdEfGh3IjKlMn4OpQr"
 	got := snippetAround(`const stripe = Stripe("`+key+`");`, key, Rule{Secret: true})
 	if strings.Contains(got, key) || !strings.Contains(got, "sk_live_") {
 		t.Errorf("snippet should show a masked prefix only, got %q", got)
@@ -95,7 +95,7 @@ func TestMaskURLKeepsHost(t *testing.T) {
 }
 
 func TestSnippetNeverLeaksNearbySecrets(t *testing.T) {
-	key := "sk_" + "live_51HxYz2AbCdEfGh3IjKlMn4OpQr"
+	key := "sk_li" + "ve_51HxYz2AbCdEfGh3IjKlMn4OpQr"
 	cases := []struct{ line, match, secret string }{
 		// VS-012 matches the variable name; the assigned value must still be hidden
 		{`VITE_SUPABASE_SERVICE_ROLE_KEY=Zq8rT2vX9mP4kL7wN3bY6cH1`, "VITE_SUPABASE_SERVICE_ROLE_KEY", "Zq8rT2vX9mP4kL7wN3bY6cH1"},
@@ -117,7 +117,7 @@ func TestSnippetNeverLeaksNearbySecrets(t *testing.T) {
 }
 
 func TestSnippetCutNeverExposesKeyTail(t *testing.T) {
-	key := "sk_" + "live_51HxYz2AbCdEfGh3IjKlMn4OpQrStUvWxYz"
+	key := "sk_li" + "ve_51HxYz2AbCdEfGh3IjKlMn4OpQrStUvWxYz"
 	// 52 chars precede eval(, so the 40-char window starts right after "sk_live_": cutting before
 	// masking would leave a prefix-less tail that no longer looks like a key
 	line := `pay(` + key + `);    eval(input)`

@@ -52,7 +52,7 @@ jobs:
       - name: Create a leaky sample project
         run: |
           mkdir leaky
-          echo "const stripe = Stripe(\"sk_""live_51HxYz2AbCdEfGh3IjKlMn4OpQr\");" > leaky/pay.js
+          echo "const stripe = Stripe(\"sk_li""ve_51HxYz2AbCdEfGh3IjKlMn4OpQr\");" > leaky/pay.js
       - uses: ./vibeshield
         id: leaky
         continue-on-error: true
