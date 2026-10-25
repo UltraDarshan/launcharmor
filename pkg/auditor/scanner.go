@@ -220,26 +220,31 @@ func firstValidMatch(rule Rule, line string) string {
 	return ""
 }
 
-// snippetAround returns up to ~40 chars of context either side of match. Each side is masked in
-// full before it is cut, so a cut can never expose the unrecognisable tail of a credential, and
+// snippetAround returns up to ~40 chars of context either side of match. The whole line is masked
+// before anything is cut or located, so no cut or split can expose part of a credential and
 // findings never re-leak keys into (often public) CI logs.
 func snippetAround(line, match string, rule Rule) string {
-	i := strings.Index(line, match)
-	before, after := maskSecrets(line[:i]), maskSecrets(line[i+len(match):])
+	if rule.HideRest {
+		return match + " ********" // the name itself is the evidence; the line holds its value
+	}
+	masked := maskSecrets(line)
 	shown := match
 	if rule.Secret {
 		shown = Mask(match)
 	}
-	if rule.HideRest && strings.TrimSpace(after) != "" {
-		after = " ********"
+	i := strings.Index(masked, shown)
+	if i < 0 {
+		return "********" // match overlapped a credential and was masked with it
 	}
-	if len(before) > 40 {
-		before = "..." + before[len(before)-40:]
+	start, end := max(0, i-40), min(len(masked), i+len(shown)+40)
+	out := strings.TrimSpace(masked[start:end])
+	if start > 0 {
+		out = "..." + out
 	}
-	if len(after) > 40 {
-		after = after[:40] + "..."
+	if end < len(masked) {
+		out += "..."
 	}
-	return strings.ToValidUTF8(strings.TrimSpace(before+shown+after), "")
+	return strings.ToValidUTF8(out, "")
 }
 
 // maskSecrets masks every credential-shaped string, whether or not it passed a rule's validator.
