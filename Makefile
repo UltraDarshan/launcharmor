@@ -1,4 +1,4 @@
-.PHONY: all build test clean run-scan run-db run-harden
+.PHONY: all build test clean run-scan run-db run-harden site
 
 BINARY_NAME=vibeshield
 BUILD_DIR=bin
@@ -28,3 +28,7 @@ run-db: build
 
 run-harden: build
 	./$(BUILD_DIR)/$(BINARY_NAME) harden myapp 3000 myapp.com ./deploy
+
+# Compile the landing page's Tailwind CSS (docs/ is served by GitHub Pages)
+site:
+	cd web && npm install --no-audit --no-fund && npm run build

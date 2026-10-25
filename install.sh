@@ -1,29 +1,44 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 REPO="UltraDarshan/vibeshield"
-VERSION="v0.1.0-alpha"
-
-echo "[VibeShield] Downloading standalone binary for Linux (x86_64)..."
+VERSION="${VIBESHIELD_VERSION:-latest}"
 
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
-ARCH="$(uname -m)"
+case "$(uname -m)" in
+    x86_64|amd64) ARCH="amd64" ;;
+    aarch64|arm64) ARCH="arm64" ;;
+    *) ARCH="unsupported" ;;
+esac
 
-if [ "$OS" != "linux" ] || [ "$ARCH" != "x86_64" ]; then
-    echo "Currently, this quick installer supports Linux x86_64. For Windows or other architectures, please download from: https://github.com/${REPO}/releases"
+if [ "$OS" != "linux" ] && [ "$OS" != "darwin" ] || [ "$ARCH" = "unsupported" ]; then
+    echo "No prebuilt binary for $(uname -s)/$(uname -m). Download one from https://github.com/${REPO}/releases or build with: go install github.com/${REPO}/cmd/vibeshield@latest" >&2
     exit 1
 fi
 
-TARGET_BIN="vibeshield-linux-amd64"
-DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${VERSION}/${TARGET_BIN}"
+TARGET_BIN="vibeshield-${OS}-${ARCH}"
+if [ "$VERSION" = "latest" ]; then
+    DOWNLOAD_URL="https://github.com/${REPO}/releases/latest/download/${TARGET_BIN}"
+else
+    DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${VERSION}/${TARGET_BIN}"
+fi
 
 INSTALL_DIR="${HOME}/.local/bin"
 mkdir -p "$INSTALL_DIR"
+TMP="$(mktemp)"
+trap 'rm -f "$TMP"' EXIT
 
-curl -sSL "$DOWNLOAD_URL" -o "${INSTALL_DIR}/vibeshield"
-chmod +x "${INSTALL_DIR}/vibeshield"
+echo "[VibeShield] Downloading ${TARGET_BIN} (${VERSION})..."
+# -f: fail on HTTP errors instead of saving a "Not Found" page as the binary
+curl -fsSL "$DOWNLOAD_URL" -o "$TMP"
+chmod +x "$TMP"
+mv "$TMP" "${INSTALL_DIR}/vibeshield"
 
-echo "✔ VibeShield installed successfully to ${INSTALL_DIR}/vibeshield"
+echo "✔ VibeShield installed to ${INSTALL_DIR}/vibeshield"
+case ":$PATH:" in
+    *":${INSTALL_DIR}:"*) ;;
+    *) echo "  Note: ${INSTALL_DIR} is not on your PATH. Add: export PATH=\"\$HOME/.local/bin:\$PATH\"" ;;
+esac
 echo ""
 echo "Run it anywhere with:"
 echo "  vibeshield scan ."

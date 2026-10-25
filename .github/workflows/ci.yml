@@ -19,6 +19,11 @@ jobs:
         with:
           go-version: '1.26'
 
+      - name: Check formatting and vet
+        run: |
+          test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+          go vet ./...
+
       - name: Build binary
         run: make build
 
@@ -29,3 +34,16 @@ jobs:
         run: |
           ./bin/vibeshield scan .
           ./bin/vibeshield db-audit .
+
+  action:
+    name: Composite action works from a consumer repo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: vibeshield
+      - name: Create a clean sample project
+        run: mkdir sample && echo 'console.log("hello")' > sample/index.js
+      - uses: ./vibeshield
+        with:
+          target_dir: sample
