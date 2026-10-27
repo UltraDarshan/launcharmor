@@ -58,6 +58,11 @@ launcharmor scan . --format sarif > launcharmor.sarif   # or --format json
 | VS-011 | Database URLs with a real password on a remote host | High |
 | VS-012 | Secrets in browser-bundled env vars (`NEXT_PUBLIC_`, `VITE_`, `EXPO_PUBLIC_`…) | Critical |
 | VS-013 | Slack tokens | High |
+| VS-014 | Resend API keys | Critical |
+| VS-015 | Groq API keys | Critical |
+| VS-016 | PostHog keys | High |
+| VS-017 | Perplexity AI keys (`pplx-`) | Critical |
+| VS-018 | Hugging Face tokens (`hf_`) | High |
 | VS-020 | Firebase rules with `if true` / `".read": true` | Critical |
 
 Placeholders (`sk-xxxx`, `your-api-key`), local dev databases and gitignored `.env` files are skipped, and secrets are **masked in all output** so findings never re-leak keys into CI logs. False positive? Add `launcharmor:ignore` in a comment on that line.
@@ -79,7 +84,13 @@ Generates hardened Caddy / Nginx reverse proxy configs and a sandboxed `systemd`
 launcharmor harden <name> <port> <domain> [out-dir]   # e.g. launcharmor harden myapp 3000 myapp.com ./deploy
 ```
 
-### 4. GitHub Action
+### 4. Git Pre-Commit Hook (`launcharmor install-hook`)
+Blocks leaked secrets and risky code before `git commit` allows them into your repository history:
+```bash
+launcharmor install-hook
+```
+
+### 5. GitHub Action
 ```yaml
 - uses: actions/checkout@v4
 - name: LaunchArmor security audit

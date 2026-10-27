@@ -15,7 +15,7 @@ import (
 	"github.com/UltraDarshan/launcharmor/pkg/infra"
 )
 
-const version = "0.2.0"
+const version = "0.3.0"
 
 // Names end up in file paths and nginx zone names; domains in proxy configs.
 var (
@@ -74,6 +74,12 @@ func main() {
 		}
 
 		runHarden(appName, port, domain, outputDir)
+	case "install-hook":
+		target := "."
+		if len(os.Args) > 2 {
+			target = os.Args[2]
+		}
+		runInstallHook(target)
 	case "version":
 		fmt.Printf("LaunchArmor version %s (%s/%s)\n", version, runtime.GOOS, runtime.GOARCH)
 	case "help", "-h", "--help":
@@ -295,6 +301,47 @@ func runHarden(appName string, port int, domain string, outputDir string) {
 	fmt.Printf("  sudo systemctl daemon-reload && sudo systemctl enable --now %s\n", appName)
 }
 
+func runInstallHook(targetDir string) {
+	gitDir := filepath.Join(targetDir, ".git")
+	fi, err := os.Stat(gitDir)
+	if err != nil || !fi.IsDir() {
+		fmt.Printf("%s[Error]%s %s is not a Git repository (no .git directory found).\n", colorRed, colorReset, targetDir)
+		os.Exit(1)
+	}
+
+	hooksDir := filepath.Join(gitDir, "hooks")
+	if err := os.MkdirAll(hooksDir, 0755); err != nil {
+		fmt.Printf("%s[Error]%s Failed to create hooks directory: %v\n", colorRed, colorReset, err)
+		os.Exit(1)
+	}
+
+	hookPath := filepath.Join(hooksDir, "pre-commit")
+	hookScript := `#!/bin/sh
+# LaunchArmor pre-commit hook
+# Automatically blocks commits containing leaked API keys, credentials, or open RLS policies.
+
+if command -v launcharmor >/dev/null 2>&1; then
+    echo "🛡️  Running LaunchArmor pre-commit scan..."
+    launcharmor scan . || {
+        echo ""
+        echo "❌ LaunchArmor blocked commit due to critical security findings."
+        echo "   Resolve the issues above or use 'git commit --no-verify' to override."
+        exit 1
+    }
+else
+    echo "⚠️  LaunchArmor not found in PATH; skipping pre-commit security check."
+fi
+`
+	if err := os.WriteFile(hookPath, []byte(hookScript), 0755); err != nil {
+		fmt.Printf("%s[Error]%s Failed to write pre-commit hook: %v\n", colorRed, colorReset, err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("%s✔ Git pre-commit hook installed successfully!%s\n", colorGreen, colorReset)
+	fmt.Printf("  Location: %s%s%s\n", colorBold, hookPath, colorReset)
+	fmt.Println("  LaunchArmor will now automatically verify your code before allowing git commit.")
+}
+
 func printHelp() {
 	fmt.Println("LaunchArmor - Security Scanner & Linux Infra Hardener for Vibe-Coded Apps")
 	fmt.Println("\nUsage:")
@@ -303,5 +350,6 @@ func printHelp() {
 	fmt.Println("  launcharmor db-audit [dir] [--format ...]    Audit SQL/Supabase migrations for missing RLS and open policies")
 	fmt.Println("  launcharmor harden [name] [port] [domain] [out-dir]")
 	fmt.Println("                                              Generate hardened Linux Caddy, Nginx & systemd configs")
+	fmt.Println("  launcharmor install-hook [dir]               Install Git pre-commit hook to block secret leaks automatically")
 	fmt.Println("  launcharmor version                          Display version information")
 }

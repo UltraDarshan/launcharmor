@@ -37,6 +37,8 @@ func TestRuleAccuracy(t *testing.T) {
 		{"VS-014", `const resend = "re_` + `1234567890AbCdEfGhIjKl"`, true},
 		{"VS-015", `const groq = "gsk_` + `AbCdEf1234567890GhIjKlMnOpQrStUvWxYz01234567"`, true},
 		{"VS-016", `const ph = "phc_` + `AbCdEf1234567890GhIjKlMnOpQrStUv"`, true},
+		{"VS-017", `const pplx = "pplx-` + `1234567890abcdef1234567890abcdef1234567890abcdef"`, true},
+		{"VS-018", `const hf = "hf_` + `1234567890AbCdEfGhIjKlMnOpQrStUvWx"`, true},
 
 		// Look-alikes that must NOT be flagged
 		{"VS-001", `<div class="sk-folding-cube-animation-wrapper">`, false}, // SpinKit CSS
